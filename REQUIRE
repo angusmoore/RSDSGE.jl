@@ -1,3 +1,4 @@
 julia 0.5
 NLsolve 0.9.1
 SymPy 0.5.0
+JLD # Only needed for tests
