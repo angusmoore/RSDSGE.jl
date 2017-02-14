@@ -1,4 +1,4 @@
-function sympify_catch(exp,eqno)
+function sympify_catch(exp::String,eqno::Int)
     try
         return Expr = Sym(exp)
     catch err
@@ -20,7 +20,7 @@ function RegimeParameterDecomposition(parameter_values::Array{Float64,1},ergodic
     return RegimeParameterDecomposition(bar,hatarray)
 end
 
-function checksymbols(equations,vars,shocks,parameters)
+function checksymbols(equations::Array{Float64,1},vars::Variables,shocks::Shocks,parameters::Parameters)
     # This function checks all the expressions for symbols that are unrecognised.
     # Catching this early is helpful for avoiding errors later.
     validsymbols = vcat(vars.leads_sym,shocks.syms,vars.contemps_sym,vars.states_sym,parameters.generic_sym[:])
@@ -53,7 +53,7 @@ function formatparametervalues(numregimes,numparameters,parameter_values,paramet
     return formatted,switching
 end
 
-function getergodic(transmatrix)
+function getergodic(transmatrix::Array{Float64,2})
     D,V = eig(transmatrix')
     eigindex = indmin(abs(D-1.0))
     ergodic = vec(V[:,eigindex]/sum(V[:,eigindex]))
@@ -64,25 +64,7 @@ function getergodic(transmatrix)
     end
 end
 
-function checknames(names)
-    # This function throws an error for names that are unacceptable/reserved in sympy (i.e. pi, inf etc)
-    badnames = Array(String,0)
-    push!(badnames,"Inf")
-    push!(badnames,"inf")
-    push!(badnames,"exp")
-    push!(badnames,"pi")
-    push!(badnames,"log")
-    push!(badnames,"beta")
-
-    for name in names
-        if any(badnames.==name)
-            error("Name: $(name) is a reserved name in SymPy. Please change it.")
-        end
-    end
-    return 
-end
-
-function createtransmatrix_sym(numregimes)
+function createtransmatrix_sym(numregimes::Int)
     out = Array(SymPy.Sym,numregimes)
     for j = 1:numregimes
         out[j] = Sym("TRANSITIONPROBABILITY_RX_RP$(j)")
@@ -90,7 +72,7 @@ function createtransmatrix_sym(numregimes)
     return out
 end
 
-function sympifyallexpressions(expressions,leads_sym,vars)
+function sympifyallexpressions(expressions::Array{String,1},leads_sym::Array{SymPy.Sym,1},vars::Array{String,1})
     expressions_sym = Array(SymPy.Sym,length(expressions))
 
     lags = createsymversions(vars,"_lag") # Create a list of all lagged variable - these are _potential_ states
@@ -129,17 +111,15 @@ function sympifyallexpressions(expressions,leads_sym,vars)
     return expressions_sym,isstate,states_sym,states_indices
 end
 
-function createsymversions(vars,suffix)
+function createsymversions(vars::Array{String,1},suffix=""::String)
     out = Array(SymPy.Sym,length(vars))
     for (i,var) in enumerate(vars)
         out[i] = Sym(string(var,suffix))
     end
     return out
 end    
-# Create method to allow call without optional suffix
-createsymversions(vars) = createsymversions(vars,"")
 
-function createsymparameters(names,switches)
+function createsymparameters(names::Array{String,1},switches::Array{Bool,1})
     out = Array(SymPy.Sym,2,length(names))
     for (i,name,switch) in zip(1:length(names),names,switches)
         if switch
@@ -153,7 +133,7 @@ function createsymparameters(names,switches)
     return out
 end
 
-function evaluateSS(ssfunction,varvalues,parametervalues)
+function evaluateSS(ssfunction::Array{Function,1},varvalues::Array{Float64,1},parametervalues::Array{Float64,1})
     out = Array(Float64,length(ssfunction))
     for (i,f) in enumerate(ssfunction)
         out[i] = f(varvalues...,parametervalues...)
@@ -161,7 +141,7 @@ function evaluateSS(ssfunction,varvalues,parametervalues)
     return out
 end
 
-function lambdifyss(ss,vars,parameters)
+function lambdifyss(ss::Array{SymPy.Sym,1},vars::Array{SymPy.Sym,1},parameters::Array{SymPy.Sym,1})
     # Takes in sympy expressions, and symbolic object versions of the variables and parameters
     # Converts to a function that takes in arrays of variable values and parameter values
     # and returns equation errors
@@ -172,7 +152,8 @@ function lambdifyss(ss,vars,parameters)
     return functionarray
 end
 
-function createSSparameters(numparameters,parameter_affectsSS,barversions,parameter_names,parameters,switching)
+function createSSparameters(numparameters::Int,parameter_affectsSS::Array{Bool,1},barversions::Array{SymPy.Sym,1},
+			     parameter_names::Array{String,1},parameters::Array{SymPy.Sym,1},switching::Array{Bool,1})
     parametersSS = Array(SymPy.Sym,numparameters)
     for p = 1:numparameters
         if parameter_affectsSS[p]
@@ -229,17 +210,6 @@ function decomposeparameters(parameters,switching,affectsSS,parameter_values,erg
     end
     
     return parameter_decomposition, parameter_bar_sym, parameter_regime_sym
-end
-
-function subparameters(system,parameters,values)
-    out = similar(system)
-    for (i,expression) in enumerate(system)
-        for (param,value) in zip(parameters,values)
-            expression = subs_withcheck(expression,param,value)
-        end
-        out[i] = expression
-    end
-    return out
 end
 
 function findparametersaffectSS(numparameters,parameter_names,parameter_sym,parameter_switching,
@@ -299,20 +269,6 @@ function findparametersaffectSS(numparameters,parameter_names,parameter_sym,para
     end
     
     return affectSS,SSbaseline
-end
-
-function appearsmorethanonce(var,system)
-    appeared = false
-    for expression in system
-        if var in SymPy.free_symbols(expression)
-            if appeared
-                return true
-            else
-                appeared = true
-            end
-        end
-    end
-    return false
 end
 
 function findstaticexpressions(expressions_sym,leads_sym,contemps_sym,states_sym,var_isstate,eq_isexo,var_isexo)
@@ -404,7 +360,6 @@ function findexoequations(expressions,leads,contemps)
         keepexpression = trues(length(restrictedsystem))
         for (i,(expression,expression_index)) in enumerate(zip(restrictedsystem,restrictedindices))
             indices = expressioncontains(expression,endocontemps)
-            #println("Expression $(expression_index) contains $(countnz(indices)) contemps: $(contempindices[indices])")
             if countnz(indices) == 1
                 # Now figure out which one
                 newexo = contempindices[indices]
