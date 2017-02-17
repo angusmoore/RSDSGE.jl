@@ -7,11 +7,12 @@ import NLsolve
 
 include("types.jl")
 
-include("model_constructor.jl")
-include("model_utils.jl")
-include("perturbation_constructor.jl")
-include("solve.jl")
-include("utils.jl")
+include("constructor/modeltypes.jl")
+include("constructor/utils.jl")
+include("constructor/constructor.jl")
+include("constructor/perturbation.jl")
+include("modelutils.jl")
+include("solve/solve.jl")
 
 # Functions to be exported
 export RSDSGEModel, RSDSGESolution, solve, copy, updateparameters!, findSS!
