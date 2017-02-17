@@ -30,7 +30,7 @@ function copy(pert::PerturbationSystem)
     return PerturbationSystem([deepcopy(getfield(pert, k)) for k = 1:length(fieldnames(pert))]...)
 end
 
-function createpairedtuplelist(keyarray::Array{Any},valuearray::Array{Any})
+function createpairedtuplelist(keyarray::Array,valuearray::Array)
     out = ()
     for (key,val) in zip(keyarray,valuearray)
         out = (out...,(key,val))
