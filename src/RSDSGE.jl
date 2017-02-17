@@ -5,8 +5,6 @@ import SymPy: Sym, jacobian # Used a lot, and doesn't lead to conflict
 import Base.copy
 using NLsolve
 
-include("types.jl")
-
 include("constructor/modeltypes.jl")
 include("constructor/utils.jl")
 include("constructor/constructor.jl")
