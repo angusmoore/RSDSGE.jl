@@ -25,7 +25,7 @@ function findSS!(model::RSDSGEModel)
     return findSS!(model,model.steadystate.values)
 end
 
-function updateparameters!(model,name::AbstractString,value,reevaluateSS=true)
+function updateparameters!(model,name::String,value,reevaluateSS=true)
     index = model.parameters.dictionary[name]
     updateparameters!(model,index,value,reevaluateSS)
     return
@@ -66,4 +66,17 @@ function updateparameters!(model,index::Int,value::Array{Float64,1},reevaluateSS
     end
     return
 end
-    
+
+function updateparameters!(model,names::Array{String,1},values::Array{Any},reevaluateSS=true)
+    if length(names) != length(values)
+	error("You supplied a different number of parameters to change ($(length(names)) than values ($(length(values)).")
+    end
+    for (i,name,value) in zip(1:length(names),names,values)
+	if i < length(names)
+	    updateparameters!(model,name,value,false)
+	else
+	    updateparameters!(model,name,value,reevaluateSS)
+	end
+    end
+    return
+end

@@ -1,4 +1,4 @@
-function testloading2eqNK()
+function load2eqNK()
     phi_H = 0.9
     phi_L = 1.5
     rho = 0.9
@@ -11,11 +11,15 @@ function testloading2eqNK()
     expressions = ["1/exp(c) = 1/exp(c(+1))*((exp(inflation))^(phi_R))/exp(inflation(+1))",
     "c = rho*c(-1) + e_c"]
 
-    twoEQNK = RSDSGEModel(vars,shocks,parameters,expressions,parameter_values,regime_transmatrix)
+    RSDSGEModel(vars,shocks,parameters,expressions,parameter_values,regime_transmatrix)
+end
+
+function testloading2eqNK()
+    load2eqNK()
     return true
 end
 
-function testloadingRBCfromFRWZ()
+function loadFRWZ()
     beta = 0.9976
     mu = (0.005,0.00004)
     sigma = 0.0002
@@ -33,9 +37,16 @@ function testloadingRBCfromFRWZ()
     "c + k*exp((mu_R + sigma*eps)/(1-alpha)) = exp(mu_R+sigma*eps)*(k(-1))^(alpha) + (1-delta)*k(-1)",
     "eps = e_eps"]
 
-    FRWZ_RBC = RSDSGEModel(vars,shocks,parameters,expressions,parameter_values,transmatrix,ones(Float64,3))
+    return RSDSGEModel(vars,shocks,parameters,expressions,parameter_values,transmatrix,ones(Float64,3))
+end
+
+function testloadingRBCfromFRWZ()
+    loadFRWZ()
     return true
 end
 
 @test testloading2eqNK()
 @test testloadingRBCfromFRWZ()
+
+twoEQNK = load2eqNK()
+FRWZ = loadFRWZ()
