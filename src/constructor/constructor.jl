@@ -20,7 +20,7 @@ function RegimeParameterDecomposition(parameter_values::Array{Float64,1},ergodic
     return RegimeParameterDecomposition(bar,hatarray)
 end
 
-function checksymbols(equations::Array{Float64,1},vars::Variables,shocks::Shocks,parameters::Parameters)
+function checksymbols(equations::Equations,vars::Variables,shocks::Shocks,parameters::Parameters)
     # This function checks all the expressions for symbols that are unrecognised.
     # Catching this early is helpful for avoiding errors later.
     validsymbols = vcat(vars.leads_sym,shocks.syms,vars.contemps_sym,vars.states_sym,parameters.generic_sym[:])
@@ -37,7 +37,8 @@ end
 
 function formatparametervalues(numregimes,numparameters,parameter_values,parameter_names)
     formatted = Array(Float64,numregimes,numparameters)
-    switching = falses(length(parameter_names))
+    switching = Array(Bool,length(parameter_names))
+    fill!(switching,false)
     for (p,value,name) in zip(1:numparameters,parameter_values,parameter_names)
         if !isa(value,Number)
             switching[p] = true
@@ -89,7 +90,8 @@ function sympifyallexpressions(expressions::Array{String,1},leads_sym::Array{Sym
         expressions_sym = SymPy.subs(expressions_sym,subsargs...)
     end
     
-    isstate = falses(length(lags))
+    isstate = Array(Bool,length(lags))
+    fill!(isstate,false)
     
     for expression in expressions_sym
         isstate = isstate | expressioncontains(expression,lags)
@@ -152,8 +154,8 @@ function lambdifyss(ss::Array{SymPy.Sym,1},vars::Array{SymPy.Sym,1},parameters::
     return functionarray
 end
 
-function createSSparameters(numparameters::Int,parameter_affectsSS::Array{Bool,1},barversions::Array{SymPy.Sym,1},
-			     parameter_names::Array{String,1},parameters::Array{SymPy.Sym,1},switching::Array{Bool,1})
+function createSSparameters(numparameters::Int,parameter_affectsSS::Array{Bool,1},barversions::Array{SymPy.Sym},
+			     parameter_names::Array{String},parameters::Array{SymPy.Sym},switching::Array{Bool,1})
     parametersSS = Array(SymPy.Sym,numparameters)
     for p = 1:numparameters
         if parameter_affectsSS[p]
@@ -216,14 +218,15 @@ function findparametersaffectSS(numparameters,parameter_names,parameter_sym,para
     parameter_values,expressions,leads,lags,contemps,statesindices,shocks,ss_guess,ergodic)
     
     println("Checking which of the switching parameters affect the steady state:")
-    affectSS = falses(numparameters)
+    affectSS = Array(Bool,numparameters)
+    fill!(affectSS,false)
     
     # generate bar versions for _all_ parameters
-    baselinevalues = permutedims(parameter_values,[2 1])*reshape(ergodic,(length(ergodic),1))
+    baselinevalues = squeeze(permutedims(parameter_values,[2 1])*reshape(ergodic,(length(ergodic),1)),2)
     
     # Create and solve the SS using those baseline values
     SSsystem = createSSsystem(numparameters,expressions,leads,lags,contemps,statesindices,shocks,
-    parameter_sym,Void,affectSS,parameter_switching,parameter_names)
+    parameter_sym,Array(SymPy.Sym,0),affectSS,parameter_switching,parameter_names)
 
     sswrapper = x->evaluateSS(SSsystem,x,baselinevalues)
 
@@ -293,7 +296,8 @@ function findstaticexpressions(expressions_sym,leads_sym,contemps_sym,states_sym
     end
     
     # Finally, if a static variable appears only _once_ in the whole system, the equation it appears in has to be a static
-    tocheck = falses(numvars)
+    tocheck = Array(Bool,numvars)
+    fill!(tocheck,false)
     for (i,var) in enumerate(contemps_sym)
         if var_isstatic[i] && !appearsmorethanonce(var,expressions_sym)
             tocheck[i] = true
@@ -326,7 +330,8 @@ end
 
 function expressioncontains(expression,symbols)
     count = 0
-    isin = falses(length(symbols))
+    isin = Array(Bool,length(symbols))
+    fill!(isin,false)
     for (i,symbol) in enumerate(symbols)
         if symbol in SymPy.free_symbols(expression)
             isin[i] = true
@@ -336,7 +341,8 @@ function expressioncontains(expression,symbols)
 end
 
 function checkifcontainsforward(expressions,leads)
-    contains = falses(length(expressions))
+    contains = Array(Bool,length(expressions))
+    fill!(contains,false)
     for (i,expression) in enumerate(expressions)
         contains[i] = expressioncontains(expression,leads,true)
     end
@@ -378,9 +384,11 @@ function findexoequations(expressions,leads,contemps)
     end
     
     # Convert to boolean arrays
-    expression_isexo = falses(length(expressions))
+    expression_isexo = Array(Bool,length(expressions))
+    fill!(expression_isexo,false)
     expression_isexo[exoequations] = true
-    var_isexo = falses(length(contemps))
+    var_isexo = Array(Bool,length(contemps))
+    fill!(var_isexo,false)
     var_isexo[exocontemps] = true
     if countnz(expression_isexo) != countnz(var_isexo)
         error("Something has done wrong. Found $(countnz(expression_isexo)) exogenous equations, but $(countnz(var_isexo)) exogenous vars.")
