@@ -274,6 +274,20 @@ function findparametersaffectSS(numparameters,parameter_names,parameter_sym,para
     return affectSS,SSbaseline
 end
 
+function appearsmorethanonce(var,system)
+    appeared = false
+    for expression in system
+        if var in SymPy.free_symbols(expression)
+            if appeared
+                return true
+            else
+                appeared = true
+            end
+        end
+    end
+    return false
+end
+
 function findstaticexpressions(expressions_sym,leads_sym,contemps_sym,states_sym,var_isstate,eq_isexo,var_isexo)
     numvars = length(contemps_sym)
     var_isstatic = copy(!var_isstate)
