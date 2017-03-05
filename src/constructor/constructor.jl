@@ -4,13 +4,13 @@ include("expressions.jl")
 include("steadystate.jl")
 include("classify.jl")
 
-function Shocks(names)
+function Shocks(names::Array{String})
     dictionary = Dict(zip(names,1:length(names)))
     syms = createsymversions(names)
     return Shocks(names,dictionary,syms)
 end
 
-function parseequationsandvars(vars,equations)
+function parseequationsandvars(vars::Array{String},equations::Array{String})
     
     if length(equations)!=length(vars)
         error("You have $(length(equations)) for $(length(vars)) endogenous variables.")
@@ -37,7 +37,7 @@ function parseequationsandvars(vars,equations)
     return equations,vars
 end
 
-function RSDSGEModel(var_names,shock_names,parameter_names,equations,parameter_values,regime_transmatrix,ss_guess)
+function RSDSGEModel(var_names::Array{String},shock_names::Array{String},parameter_names::Array{String},equations::Array{String},parameter_values::Array,regime_transmatrix::Array{Float64,2},ss_guess::Array{Float64,1}=zeros(Float64,length(var_names)))
     # Some useful constants first
     numvars = length(var_names)
     numshocks = length(shock_names)
@@ -65,5 +65,3 @@ function RSDSGEModel(var_names,shock_names,parameter_names,equations,parameter_v
     
     return RSDSGEModel(meta,parameters,vars,shocks,equations,steadystate,transmatrix,perturbationsystem)
 end
-
-RSDSGEModel(v,s,p,e,pv,r) = RSDSGEModel(v,s,p,e,pv,r,zeros(length(v)))
