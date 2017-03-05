@@ -25,13 +25,13 @@ function findSS!(model::RSDSGEModel)
     return findSS!(model,model.steadystate.values)
 end
 
-function updateparameters!(model,name::String,value,reevaluateSS=true)
+function updateparameters!(model::RSDSGEModel,name::String,value,reevaluateSS=true)
     index = model.parameters.dictionary[name]
     updateparameters!(model,index,value,reevaluateSS)
     return
 end
 
-function updateparameters!(model,index::Int,value::Number,reevaluateSS=true)
+function updateparameters!(model::RSDSGEModel,index::Int,value::Number,reevaluateSS=true)
     if model.parameters.isswitching[index]
         error("$(model.parameters.names[index]) is a state-dependent parameter, but you passed in only one value.")
     end
@@ -44,12 +44,12 @@ function updateparameters!(model,index::Int,value::Number,reevaluateSS=true)
     return
 end
 
-function updateparameters!(model,index::Int,value::Tuple,reevaluateSS=true)
+function updateparameters!(model::RSDSGEModel,index::Int,value::Tuple,reevaluateSS=true)
     updateparameters!(model,index,collect(value),reevaluateSS)
     return
 end
 
-function updateparameters!(model,index::Int,value::Array{Float64,1},reevaluateSS=true)
+function updateparameters!(model::RSDSGEModel,index::Int,value::Array{Float64,1},reevaluateSS=true)
     if !model.parameters.isswitching[index]
         error("$(model.parameters.names[index]) is not a regime switching parameter, but you passed in many values for it.")
     elseif length(value) != model.meta.numregimes
@@ -67,7 +67,7 @@ function updateparameters!(model,index::Int,value::Array{Float64,1},reevaluateSS
     return
 end
 
-function updateparameters!(model,names::Array{String,1},values::Array{Any},reevaluateSS=true)
+function updateparameters!(model::RSDSGEModel,names::Array{String,1},values::Array{Any},reevaluateSS=true)
     if length(names) != length(values)
 	error("You supplied a different number of parameters to change ($(length(names)) than values ($(length(values)).")
     end
