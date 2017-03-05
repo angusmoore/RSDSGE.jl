@@ -55,3 +55,33 @@ function checknames(names::Array{String})
     end
     return 
 end
+
+function sympify_catch(exp::String,eqno::Int)
+    try
+        return Expr = Sym(exp)
+    catch err
+        if string(err.val) == "PyObject SympifyError()"
+            # This is a terrible way to do this, but I can't figure a better way...
+            println("Syntax in equation $(eqno) is invalid.")
+            rethrow(err)
+        else
+            println("Error sympifying equation $(eqno):")
+            rethrow(err)
+        end
+    end
+end
+
+function checksymbols(equations::Equations,vars::Variables,shocks::Shocks,parameters::Parameters)
+    # This function checks all the expressions for symbols that are unrecognised.
+    # Catching this early is helpful for avoiding errors later.
+    validsymbols = vcat(vars.leads_sym,shocks.syms,vars.contemps_sym,vars.states_sym,parameters.generic_sym[:])
+    for (i,expression) in enumerate(equations.syms)
+        symbollist = SymPy.free_symbols(expression)
+        for symbol in symbollist
+            if !(symbol in validsymbols)
+                error("Unknown symbol $(symbol) in equation $(i).")
+            end
+        end
+    end
+    return
+end
