@@ -7,27 +7,27 @@ function copy(meta::Meta)
 end
 
 function copy(parameters::Parameters)
-    return Meta([deepcopy(getfield(parameters, k)) for k = 1:length(fieldnames(parameters))]...)
+    return Parameters([deepcopy(getfield(parameters, k)) for k = 1:length(fieldnames(parameters))]...)
 end
 
 function copy(vars::Variables)
-    return Meta([deepcopy(getfield(vars, k)) for k = 1:length(fieldnames(vars))]...)
+    return Variables([deepcopy(getfield(vars, k)) for k = 1:length(fieldnames(vars))]...)
 end
 
 function copy(eqs::Equations)
-    return Meta([deepcopy(getfield(eqs, k)) for k = 1:length(fieldnames(eqs))]...)
+    return Equations([deepcopy(getfield(eqs, k)) for k = 1:length(fieldnames(eqs))]...)
 end
 
 function copy(ss::SteadyState)
-    return Meta([deepcopy(getfield(ss, k)) for k = 1:length(fieldnames(ss))]...)
+    return SteadyState([deepcopy(getfield(ss, k)) for k = 1:length(fieldnames(ss))]...)
 end
 
 function copy(trans::TransitionMatrix)
-    return Meta([deepcopy(getfield(trans, k)) for k = 1:length(fieldnames(trans))]...)
+    return TransitionMatrix([deepcopy(getfield(trans, k)) for k = 1:length(fieldnames(trans))]...)
 end
 
 function copy(pert::PerturbationSystem)
-    return Meta([deepcopy(getfield(pert, k)) for k = 1:length(fieldnames(pert))]...)
+    return PerturbationSystem([deepcopy(getfield(pert, k)) for k = 1:length(fieldnames(pert))]...)
 end
 
 function createpairedtuplelist(keyarray,valuearray)
