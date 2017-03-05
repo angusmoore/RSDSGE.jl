@@ -1,5 +1,5 @@
 
-function findstaticexpressions(expressions_sym,leads_sym,contemps_sym,states_sym,var_isstate,eq_isexo,var_isexo)
+function findstaticexpressions(expressions_sym::Array{SymPy.Sym},leads_sym::Array{SymPy.Sym},contemps_sym::Array{SymPy.Sym},states_sym::Array{SymPy.Sym},var_isstate::Array{Bool},eq_isexo::Array{Bool},var_isexo::Array{Bool})
     numvars = length(contemps_sym)
     var_isstatic = copy(!var_isstate)
     expression_isstatic = trues(length(expressions_sym))
@@ -43,7 +43,7 @@ function findstaticexpressions(expressions_sym,leads_sym,contemps_sym,states_sym
     return expression_isstatic,var_isstatic
 end
 
-function expressioncontains(expression,symbols,shortcircuit::Bool)
+function expressioncontains(expression::SymPy.Sym,symbols::Array{SymPy.Sym},shortcircuit::Bool)
     # This is a short-circuit version of expression contains that is equivalent but quicker than any(expressioncontains(expression,symbols))
     for symbol in symbols
         if symbol in SymPy.free_symbols(expression)
@@ -53,7 +53,7 @@ function expressioncontains(expression,symbols,shortcircuit::Bool)
     return false
 end
 
-function expressioncontains(expression,symbols)
+function expressioncontains(expression::SymPy.Sym,symbols::Array{SymPy.Sym})
     count = 0
     isin = Array(Bool,length(symbols))
     fill!(isin,false)
@@ -65,7 +65,7 @@ function expressioncontains(expression,symbols)
     return isin
 end
 
-function checkifcontainsforward(expressions,leads)
+function checkifcontainsforward(expressions::Array{SymPy.Sym},leads::Array{SymPy.Sym})
     contains = Array(Bool,length(expressions))
     fill!(contains,false)
     for (i,expression) in enumerate(expressions)
@@ -74,7 +74,7 @@ function checkifcontainsforward(expressions,leads)
     return contains
 end
 
-function findexoequations(expressions,leads,contemps)
+function findexoequations(expressions::Array{SymPy.Sym},leads::Array{SymPy.Sym},contemps::Array{SymPy.Sym})
     contains_forward = checkifcontainsforward(expressions,leads)
     restrictedindices = collect(1:length(expressions))
     restrictedsystem = expressions[!contains_forward]
