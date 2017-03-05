@@ -3,7 +3,7 @@ module RSDSGE
 import SymPy
 import SymPy: Sym, jacobian # Used a lot, and doesn't lead to conflict
 import Base.copy
-using NLsolve
+import NLsolve
 
 include("types.jl")
 
