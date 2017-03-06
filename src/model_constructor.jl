@@ -28,7 +28,7 @@ function checksymbols(equations,vars,shocks,parameters)
         symbollist = SymPy.free_symbols(expression)
         for symbol in symbollist
             if !(symbol in validsymbols)
-                error("Unknown symbol $(symbol) in equation $(i).")
+                error("Unknown symbol $(symbol) in equation $(i). If this is a regime-switching parameter, you need to add '_R' '_RP' to denote whether its value is determined today or tomorrow.")
             end
         end
     end
