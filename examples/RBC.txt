@@ -1,0 +1,35 @@
+vars: lammbda, r, Y, c, Inv, k, A
+shocks: e_A
+
+parameters: betta, sigma, delta, alpha, rho
+
+parametervalues:
+betta = 0.99
+sigma = 1
+delta = 0.025
+alpha = 0.36
+rho = (0.9,0.4)
+end
+
+equations:
+exp(lammbda) = betta*exp(lammbda(+1))*(1+exp(r)-delta)
+exp(r) = alpha*A*exp(k)^(alpha-1)
+exp(Y) = exp(c) + exp(Inv)
+exp(lammbda) = exp(c)^(-sigma)
+exp(k) = exp(Inv) + (1-delta)*exp(k(-1))
+log(A) = rho_R*log(A(-1)) + e_A
+exp(Y) = A*exp(k)^alpha
+end
+
+transmatrix: [0.99 0.01
+0.5 0.5]
+
+ssguess:
+lammbda = 1
+c = 1
+r = 1.01
+k = 10
+Inv = 1
+Y = 2
+A = 1
+end

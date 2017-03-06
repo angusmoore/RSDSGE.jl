@@ -8,6 +8,7 @@ import NLsolve
 include("constructor/modeltypes.jl")
 include("constructor/utils.jl")
 include("constructor/constructor.jl")
+include("constructor/parsefile.jl")
 include("constructor/perturbation.jl")
 include("modelutils.jl")
 include("solve/solve.jl")

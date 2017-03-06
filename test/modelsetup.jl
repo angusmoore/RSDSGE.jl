@@ -45,8 +45,14 @@ function testloadingRBCfromFRWZ()
     return true
 end
 
+function testloadingfromfile()
+    RSDSGEModel("../examples/RBC.txt")
+    return true
+end
+
 @test testloading2eqNK()
 @test testloadingRBCfromFRWZ()
+@test testloadingfromfile()
 
 twoEQNK = load2eqNK()
 FRWZ = loadFRWZ()
