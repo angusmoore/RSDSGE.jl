@@ -51,7 +51,7 @@ function findparametersaffectSS(numparameters,parameter_names,parameter_sym,para
         error("Steady state guess does not evaluate (e.g. due to divide-by-zero). Supply a different initial guess.")
     end
     nlout = NLsolve.nlsolve(NLsolve.not_in_place(sswrapper), ss_guess)
-    if !converged(nlout)
+    if !NLsolve.converged(nlout)
         println("FAILED.")
         println("Residuals at initial guess:")
         println(sswrapper(ss_guess))
