@@ -46,7 +46,7 @@ function RSDSGEModel(file::String)
     return RSDSGEModel(vars,shocks,parameters,equations,parametervalues,transmatrix,ssguess)
 end
 
-function findline(keyword,modelfilestring)
+function findline(keyword::String,modelfilestring::String)
     indices = Bool[startswith(strip(line),keyword) for line in modelfilestring]
     if countnz(indices) != 1
 	error("Model file contains $(countnz(indices)) occurences of the $keyword keyword. It must appear only once.")
@@ -55,22 +55,22 @@ function findline(keyword,modelfilestring)
     return (1:length(modelfilestring))[indices][1] # The extra one gets the scalar, rather than a 1 element array
 end
 
-function parsevars(vars)
+function parsevars(vars::String)
     vars = strip(vars[6:end]) # Chop off the keyword and whitespace
     return splitoncomma(vars)
 end
 
-function parseshocks(shocks)
+function parseshocks(shocks::String)
     shocks = strip(shocks[8:end]) # Chop off the keyword and whitespace
     return splitoncomma(shocks)
 end
 
-function parseparameters(parameters)
+function parseparameters(parameters::String)
     parameters = strip(parameters[12:end]) # Chop off the keyword and whitespace
     return splitoncomma(parameters)
 end
 
-function parsetransmatrix(transmatrixstring)
+function parsetransmatrix(transmatrixstring::String)
     numregimes = length(transmatrixstring)
     transmatrix = Array(Float64,numregimes,numregimes)
     for r in 1:numregimes
@@ -91,7 +91,7 @@ function parsetransmatrix(transmatrixstring)
     return transmatrix
 end
 
-function parsetuple(input)
+function parsetuple(input::String)
     if input[1] == '(' && input[end] == ')'
 	input = input[2:(end-1)]
 	vals = split(input,",")
@@ -107,7 +107,7 @@ function parsetuple(input)
     end
 end
 
-function splitonequals(input)
+function splitonequals(input::String)
     out = Dict{String,Union{Float64,Tuple}}()
     for i in eachindex(input)
 	pair = split(input[i],"=")
@@ -124,7 +124,7 @@ function splitonequals(input)
     return out
 end
 
-function parseparametervalues(values,parameters)
+function parseparametervalues(values::String,parameters::Array{String,1})
     parametervalues = Array(Any,length(parameters))
     values_dict = splitonequals(values)
     unset = trues(length(parameters))
@@ -142,7 +142,7 @@ function parseparametervalues(values,parameters)
     return parametervalues
 end
 
-function parseequations(equations)
+function parseequations(equations::String)
     out = Array(String,length(equations))
     for i in eachindex(equations)
 	out[i] = strip(equations[i])
@@ -151,7 +151,7 @@ function parseequations(equations)
 end
 
 
-function splitoncomma(in)
+function splitoncomma(in::String)
     list = split(in,",")
     out = Array(String,length(list))
     for i in eachindex(list)

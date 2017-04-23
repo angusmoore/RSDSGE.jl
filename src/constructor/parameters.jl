@@ -5,7 +5,7 @@ function RegimeParameterDecomposition(parameter_values::Array{Float64,1},ergodic
     return RegimeParameterDecomposition(bar,hatarray)
 end
 
-function formatparametervalues(numregimes,numparameters,parameter_values,parameter_names)
+function formatparametervalues(numregimes::Int,numparameters::Int,parameter_values::Array,parameter_names::Array{String})
     formatted = Array(Float64,numregimes,numparameters)
     switching = Array(Bool,length(parameter_names))
     fill!(switching,false)
@@ -63,7 +63,7 @@ function createSSparameters(numparameters::Int,parameter_affectsSS::Array{Bool,1
     return parametersSS
 end
 
-function decomposeparameters(parameters,switching,affectsSS,parameter_values,ergodic,numparameters,numregimes)
+function decomposeparameters(parameters::Array{String,1},switching::Array{Bool,1},affectsSS::Array{Bool,1},parameter_values::Array{Float64,2},ergodic::Array{Float64,1},numparameters::Int,numregimes::Int)
     
     # Preallocate output arrays
     parameter_decomposition = Array(RegimeParameterDecomposition,numparameters)
@@ -95,7 +95,7 @@ function decomposeparameters(parameters,switching,affectsSS,parameter_values,erg
     return parameter_decomposition, parameter_bar_sym, parameter_regime_sym
 end
 
-function creategenerichats(names,affectsSS)
+function creategenerichats(names::Array{String,1},affectsSS::Array{Bool,1})
     generics = Array(SymPy.Sym,2,length(affectsSS))
     sympyzero = Sym(0.0)
     for (i,name) in enumerate(names)
@@ -109,7 +109,7 @@ function creategenerichats(names,affectsSS)
     return generics
 end
 
-function Parameters!(meta,equations,vars,shocks,transmatrix,names,values,ss_guess)
+function Parameters!(meta::Meta,equations::Equations,vars::Variables,shocks::Shocks,transmatrix::TransitionMatrix,names::Array{String},values::Array,ss_guess::Array{Float64,1})
     dictionary = Dict(zip(names,1:meta.numparameters))
     values,isswitching = formatparametervalues(meta.numregimes,meta.numparameters,values,names)
     generic_sym = createsymparameters(names,isswitching) 

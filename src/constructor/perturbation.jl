@@ -1,4 +1,4 @@
-function createarglist(parameters,vars,transmatrix)
+function createarglist(parameters::Parameters,vars::Variables,transmatrix::TransitionMatrix)
     arg = Array(SymPy.Sym,1)
     arg = [transmatrix.completelygeneric] # Transition prob first
     append!(arg,vars.contemps_sym) # Add in the steady state values
@@ -12,7 +12,7 @@ function createarglist(parameters,vars,transmatrix)
     return arg
 end
 
-function lambdifycoefficient(parameters,vars,transmatrix,symmatrix,arglist)
+function lambdifycoefficient(parameters::Parameters,vars::Variables,transmatrix::TransitionMatrix,symmatrix::Array{SymPy.Sym,2},arglist::Tuple)
     sympyzero = Sym(0.0)
     fmatrix = spzeros(Function,size(symmatrix)...)
     for i in eachindex(fmatrix,symmatrix)
@@ -23,7 +23,7 @@ function lambdifycoefficient(parameters,vars,transmatrix,symmatrix,arglist)
     return fmatrix
 end
 
-function createXx(meta,vars,Xs,usewhichstates)
+function createXx(meta::Meta,vars::Variables,Xs::Array{SymPy.Sym,3},usewhichstates::Array{Bool,1})
     select = usewhichstates[vars.isstate]
     allregimes = Xs[:,select,:]
     out = Array(SymPy.Sym,0,countnz(usewhichstates))

@@ -39,7 +39,7 @@ function sympifyallexpressions(expressions::Array{String,1},leads_sym::Array{Sym
     return expressions_sym,isstate,states_sym,states_indices
 end
 
-function rearrangeequations(equations)
+function rearrangeequations(equations::Array{String})
     out = similar(equations)
     for (i,eq) in enumerate(equations)
         numequals = length(matchall(r"=", eq))

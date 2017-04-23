@@ -17,7 +17,7 @@ function createtransmatrix_sym(numregimes::Int)
     return out
 end
 
-function TransitionMatrix(trans)
+function TransitionMatrix(trans::Array{Float64,2})
     # Sanity check the regime transition matrix
     numregimes = size(trans,1)
     if size(trans,2)!=size(trans,1)
