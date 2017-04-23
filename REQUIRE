@@ -1,4 +1,4 @@
 julia 0.5
 NLsolve 0.9.1
-SymPy 0.4.0
+SymPy 0.5.1
 JLD # Only needed for tests
