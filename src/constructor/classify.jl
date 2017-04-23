@@ -1,3 +1,16 @@
+function appearsmorethanonce(var::SymPy.Sym,system::Array{SymPy.Sym})
+    appeared = false
+    for expression in system
+        if var in SymPy.free_symbols(expression)
+            if appeared
+                return true
+            else
+                appeared = true
+            end
+        end
+    end
+    return false
+end
 
 function findstaticexpressions(expressions_sym::Array{SymPy.Sym},leads_sym::Array{SymPy.Sym},contemps_sym::Array{SymPy.Sym},states_sym::Array{SymPy.Sym},var_isstate::Array{Bool},eq_isexo::Array{Bool},var_isexo::Array{Bool})
     numvars = length(contemps_sym)
