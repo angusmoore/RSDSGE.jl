@@ -1,6 +1,6 @@
 
 function sympifyallexpressions(expressions::Array{String,1},leads_sym::Array{SymPy.Sym,1},vars::Array{String,1})
-    expressions_sym = Array(SymPy.Sym,length(expressions))
+    expressions_sym = Array{SymPy.Sym}(length(expressions))
 
     lags = createsymversions(vars,"_lag") # Create a list of all lagged variable - these are _potential_ states
     writtenlags = createsymversions(vars,"(-1)") # Preallocating this saves time, by not having to repeatedly call Sym
@@ -16,17 +16,17 @@ function sympifyallexpressions(expressions::Array{String,1},leads_sym::Array{Sym
         expressions_sym = SymPy.subs(expressions_sym,subsargs...)
     end
     
-    isstate = Array(Bool,length(lags))
+    isstate = BitArray(length(lags))
     fill!(isstate,false)
     
     for expression in expressions_sym
-        isstate = isstate | expressioncontains(expression,lags)
+        isstate = isstate .| expressioncontains(expression,lags)
     end
     
     # Now create the states array and indices array
     numstates = countnz(isstate)
-    states_sym = Array(SymPy.Sym,numstates)
-    states_indices = Array(Int,numstates)
+    states_sym = Array{SymPy.Sym}(numstates)
+    states_indices = Array{Int}(numstates)
     counter = 0
     for (i,state) in enumerate(lags)
         if isstate[i]

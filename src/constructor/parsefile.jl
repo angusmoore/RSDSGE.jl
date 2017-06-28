@@ -72,7 +72,7 @@ end
 
 function parsetransmatrix(transmatrixstring)
     numregimes = length(transmatrixstring)
-    transmatrix = Array(Float64,numregimes,numregimes)
+    transmatrix = Array{Float64}(numregimes,numregimes)
     for r in 1:numregimes
 	if r == 1
 	    # First line, need to strip off the first bit
@@ -125,7 +125,7 @@ function splitonequals(input)
 end
 
 function parseparametervalues(values,parameters)
-    parametervalues = Array(Any,length(parameters))
+    parametervalues = Array{Any}(length(parameters))
     values_dict = splitonequals(values)
     unset = trues(length(parameters))
     for (key,val) in values_dict
@@ -143,7 +143,7 @@ function parseparametervalues(values,parameters)
 end
 
 function parseequations(equations)
-    out = Array(String,length(equations))
+    out = Array{String}(length(equations))
     for i in eachindex(equations)
 	out[i] = strip(equations[i])
     end
@@ -153,7 +153,7 @@ end
 
 function splitoncomma(in)
     list = split(in,",")
-    out = Array(String,length(list))
+    out = Array{String}(length(list))
     for i in eachindex(list)
 	out[i] = strip(list[i])
     end

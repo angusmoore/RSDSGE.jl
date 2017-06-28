@@ -40,7 +40,7 @@ end
 
 function checknames(names::Array{String})
     # This function throws an error for names that are unacceptable/reserved in sympy (i.e. pi, inf etc)
-    badnames = Array(String,0)
+    badnames = Array{String}(0)
     push!(badnames,"Inf")
     push!(badnames,"inf")
     push!(badnames,"exp")

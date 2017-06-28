@@ -1,8 +1,8 @@
 function getergodic(transmatrix::Array{Float64,2})
     D,V = eig(transmatrix')
-    eigindex = indmin(abs(D-1.0))
+    eigindex = indmin(abs.(D-1.0))
     ergodic = vec(V[:,eigindex]/sum(V[:,eigindex]))
-    if any(abs(imag(ergodic)).>1e-16)
+    if any(abs.(imag(ergodic)).>1e-16)
         error("Imaginary ergodic distribution")
     else
         return real(ergodic)
@@ -10,7 +10,7 @@ function getergodic(transmatrix::Array{Float64,2})
 end
 
 function createtransmatrix_sym(numregimes::Int)
-    out = Array(SymPy.Sym,numregimes)
+    out = Array{SymPy.Sym}(numregimes)
     for j = 1:numregimes
         out[j] = Sym("TRANSITIONPROBABILITY_RX_RP$(j)")
     end
@@ -23,7 +23,7 @@ function TransitionMatrix(trans)
     if size(trans,2)!=size(trans,1)
         error("Regime transition matrix is not square.")
     end
-    if any((abs(sum(trans,2))-1.0).>1e-12)
+    if any((abs.(sum(trans,2))-1.0).>1e-12)
         error("Rows of the regime transition matrix do not sum to 1.")
     end
     # Create a sympy version of the regime trans matrix

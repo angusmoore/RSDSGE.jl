@@ -1,4 +1,4 @@
-type EvaluatedMatrices
+struct EvaluatedMatrices
     A1::Array{Float64,2}
     A2::Array{Float64,2}
     A3::Array{Float64,2}
@@ -14,7 +14,7 @@ type EvaluatedMatrices
     C_constant::Array{Float64,2}
 end
 
-type StaticSub
+struct StaticSub
     YA1::Array{Float64,2}
     YA2::Array{Float64,2}
     YA3::Array{Float64,2}
@@ -27,29 +27,29 @@ type StaticSub
     YC2::Array{Float64,2}
 end
 
-type ExoSolution
+struct ExoSolution
     W::Array{Float64,2}
     Z::Array{Float64,2}
 end
 
-type DynamicSolution
+struct DynamicSolution
     X::Array{Float64,2}
     J::Array{Float64,2}
 end
 
-type StaticSolution
+struct StaticSolution
     Y::Array{Float64,2}
 end
 
-type ShocksSolution
+struct ShocksSolution
     orderedME::Array{Float64,2}
 end
 
-type ConstantSolution
+struct ConstantSolution
     orderedMC::Array{Float64,2}
 end
 
-type RSDSGESolution
+struct RSDSGESolution
     MX::Array{Float64,3}
     ME::Array{Float64,3}
     MC::Array{Float64,3}
@@ -79,7 +79,7 @@ function EvaluatedMatrices(model,r)
 end
 
 function evaluatematrices(model)
-    out = Array(EvaluatedMatrices,0)
+    out = Array{EvaluatedMatrices}(0)
     for r in 1:model.meta.numregimes
         push!(out,EvaluatedMatrices(model,r))
     end
@@ -87,16 +87,16 @@ function evaluatematrices(model)
 end
 
 function createarglistvalues(model,r,rp)
-    arg = Array(Float64,1)
+    arg = Array{Float64}(1)
     arg = [model.transmatrix.values[r,rp]] # Transition prob first
     append!(arg,model.steadystate.values) # Add in the steady state values
     # Non-switching vars first
-    append!(arg,model.parameters.values_withbar[r,!model.parameters.isswitching])
+    append!(arg,model.parameters.values_withbar[r, .!model.parameters.isswitching])
     # For parameters that affect SS, just need the bar version
     append!(arg,model.parameters.values_withbar[r,model.parameters.affectsSS])
     # Finally, for parameters that switch but _don't_ affect SS, need both R and and RP version
-    append!(arg,model.parameters.values_withbar[r,model.parameters.isswitching & !model.parameters.affectsSS])
-    append!(arg,model.parameters.values_withbar[rp,model.parameters.isswitching & !model.parameters.affectsSS])
+    append!(arg,model.parameters.values_withbar[r,model.parameters.isswitching .& .!model.parameters.affectsSS])
+    append!(arg,model.parameters.values_withbar[rp,model.parameters.isswitching .& .!model.parameters.affectsSS])
     return arg
 end
 
@@ -173,7 +173,7 @@ function substatics(model,m,r)
 end
 
 function substatics(model,m)
-    solutions = Array(StaticSub,model.meta.numregimes)
+    solutions = Array{StaticSub}(model.meta.numregimes)
     for r in 1:model.meta.numregimes
         solutions[r] = substatics(model,m[r],r)
     end
@@ -235,7 +235,7 @@ function solveexos(model,m,staticsol,r)
 end
 
 function solveexos(model,m,staticsubs)
-    solutions = Array(ExoSolution,model.meta.numregimes)
+    solutions = Array{ExoSolution}(model.meta.numregimes)
     for r in 1:model.meta.numregimes
         solutions[r] = solveexos(model,m[r],staticsubs[r],r)
     end
@@ -283,8 +283,8 @@ function createsystem(model,m,staticsol,exosol,Wz,Zz,dynamics,r)
 end
 
 function createsystem(model,m,statics,exos,Wx,Wz)
-    dynamics = !model.equations.isstatic & !model.equations.isexo
-    system = Array(SymPy.Sym,countnz(dynamics)*model.meta.numregimes,model.meta.numstates)
+    dynamics = .!model.equations.isstatic .& .!model.equations.isexo
+    system = Array{SymPy.Sym}(countnz(dynamics)*model.meta.numregimes,model.meta.numstates)
     for r in 1:model.meta.numregimes
         system[(1+(r-1)*countnz(dynamics)):r*countnz(dynamics),:] = createsystem(model,m[r],statics[r],exos[r],Wx,Wz,dynamics,r)
     end
@@ -292,7 +292,7 @@ function createsystem(model,m,statics,exos,Wx,Wz)
 end
 
 function markequations(model,block)
-    dynamics = !model.equations.isstatic & !model.equations.isexo
+    dynamics = .!model.equations.isstatic .& .!model.equations.isexo
     forblock = falses(0,model.meta.numstates)
     removefromsystem = falses(0,model.meta.numstates)
     keepeq = falses(countnz(dynamics),model.meta.numstates)
@@ -308,13 +308,13 @@ end
 
 function replaceblocks(model,block,system)
     # It can still depend on any or all of the exos, so we don't sub any of those out.
-    tosubout = model.perturbationsystem.Xs[block.vars[model.perturbationsystem.isX],!block.states,:]
+    tosubout = model.perturbationsystem.Xs[block.vars[model.perturbationsystem.isX],.!block.states,:]
     tosubout = reshape(tosubout,length(tosubout))
-    tosubout2 = model.perturbationsystem.Js[block.vars[model.perturbationsystem.isJ],!block.states,:]
+    tosubout2 = model.perturbationsystem.Js[block.vars[model.perturbationsystem.isJ],.!block.states,:]
     tosubout = vcat(tosubout,reshape(tosubout2,length(tosubout2)))
     
     sympyzero = Sym(0.0)
-    zeroarray = Array(SymPy.Sym,length(tosubout))
+    zeroarray = Array{SymPy.Sym}(length(tosubout))
     fill!(zeroarray,sympyzero)
     replacearg = createpairedtuplelist(tosubout,zeroarray)
     if !isempty(replacearg)>0
@@ -326,19 +326,19 @@ end
 
 function separateblocks(model,system)
     restricteddecisionrules = Dict{SymPy.Sym,SymPy.Sym}() # To hold the decision rule solutions that are restricted to zero because of block exogeneity
-    blocks = Array(Array{SymPy.Sym,1},0)
+    blocks = Array{Array{SymPy.Sym,1}}(0)
     usedinblock = falses(length(system))
     for block in model.perturbationsystem.blocks
         blockwhich,removewhich = markequations(model,block)
         blockwhich = reshape(blockwhich,length(system))
         removewhich = reshape(removewhich,length(system))
-        usedinblock = usedinblock | removewhich
+        usedinblock = usedinblock .| removewhich
         # Now, replace any decision rules for states that don't exist in the block by zero
         blocksystem,blockdecisionrules = replaceblocks(model,block,system[blockwhich])
         push!(blocks,blocksystem)
         merge!(restricteddecisionrules,blockdecisionrules)
     end
-    return blocks,system[!usedinblock],restricteddecisionrules
+    return blocks,system[.!usedinblock],restricteddecisionrules
 end
 
 function subsdict(target,dictionary)
@@ -423,7 +423,7 @@ function solve_withfallback(system)
 end
 
 function lambdifysystem(system,args)
-    out = Array(Function,length(system))
+    out = Array{Function}(length(system))
     for (i,expr) in enumerate(system)
         out[i] = SymPy.lambdify(expr,args)
     end
@@ -465,7 +465,7 @@ function hasimaginary(sol)
 end
 
 function dict2array(dict,indices)
-    out = Array(valtype(dict),size(indices))
+    out = Array{valtype(dict)}(size(indices))
     for i in eachindex(indices)
         out[i] = dict[indices[i]]
     end
@@ -473,7 +473,7 @@ function dict2array(dict,indices)
 end
 
 function formatdynamicsolution(model,solution::Dict)
-    out = Array(DynamicSolution,model.meta.numregimes)
+    out = Array{DynamicSolution}(model.meta.numregimes)
     for r in 1:model.meta.numregimes
         Xsols = dict2array(solution,model.perturbationsystem.Xs[:,:,r])
         Jsols = dict2array(solution,model.perturbationsystem.Js[:,:,r])
@@ -483,10 +483,10 @@ function formatdynamicsolution(model,solution::Dict)
 end
 
 function arrangesolutionmatrices(model,exosolution,dynamicsolution)
-    Xx = Array(Float64,0,countnz(model.perturbationsystem.isX[model.vars.isstate]))
-    Xz = Array(Float64,0,countnz(model.perturbationsystem.isZ[model.vars.isstate]))
-    Jx = Array(Float64,0,countnz(model.perturbationsystem.isX[model.vars.isstate]))
-    Jz = Array(Float64,0,countnz(model.perturbationsystem.isZ[model.vars.isstate]))
+    Xx = Array{Float64}(0,countnz(model.perturbationsystem.isX[model.vars.isstate]))
+    Xz = Array{Float64}(0,countnz(model.perturbationsystem.isZ[model.vars.isstate]))
+    Jx = Array{Float64}(0,countnz(model.perturbationsystem.isX[model.vars.isstate]))
+    Jz = Array{Float64}(0,countnz(model.perturbationsystem.isZ[model.vars.isstate]))
     for r in 1:model.meta.numregimes
         Xx = vcat(Xx,dynamicsolution[r].X[:,model.perturbationsystem.isX[model.vars.isstate]])
         Jx = vcat(Jx,dynamicsolution[r].J[:,model.perturbationsystem.isX[model.vars.isstate]])
@@ -499,7 +499,7 @@ end
 function solvestatics(model,staticsols,exosols,dynamicsols,Xx,Xz,Jx,Jz,Wz,Zz)
     # This function uses the exo and dynamic solutions to return the actual solutions for static variables, rather
     # than 'solutions' that just express them as a function of other variables
-    out = Array(StaticSolution,model.meta.numregimes)
+    out = Array{StaticSolution}(model.meta.numregimes)
     for (r,static,exo,dynamic) in zip(1:model.meta.numregimes,staticsols,exosols,dynamicsols)
         out[r] = StaticSolution(static.YA1*(Jx*dynamic.X + Jz*exo.Z) + static.YA2*(Wz*exo.Z) + static.YA3*(Xx*dynamic.X + Xz*exo.Z) + static.YA4*(Zz*exo.Z) + static.YB1*dynamic.J + static.YB2*exo.W + static.YB3*dynamic.X + static.YB4*exo.Z + hcat(static.YC1, static.YC2))
     end
@@ -546,7 +546,7 @@ function rearrangeshocks(model,ordered)
 end
 
 function solveshocks(model,m,Xx,Xz,Jx,Jz,Wz,Zz)
-    out = Array(ShocksSolution,0)
+    out = Array{ShocksSolution}(0)
     for r in 1:model.meta.numregimes
         push!(out,solveshocks(model,m[r],Xx,Xz,Jx,Jz,Wz,Zz,r))
     end
@@ -585,7 +585,7 @@ function addssvalues!(constantsol,model)
 end
 
 function solveconstant(model,m,Xx,Xz,Jx,Jz,Wz,Zz)
-    out = Array(ConstantSolution,0)
+    out = Array{ConstantSolution}(0)
     for r in 1:model.meta.numregimes
         push!(out,solveconstant(model,m[r],Xx,Xz,Jx,Jz,Wz,Zz,r))
     end
@@ -647,7 +647,7 @@ function solve(model::RSDSGEModel,verbose::Bool = true; method::Int=1)
         dynamicsolutions = [dynamicsolutions]
     end
     println("Found $(length(dynamicsolutions)) solution(s).")
-    solutions = Array(RSDSGESolution,0)
+    solutions = Array{RSDSGESolution}(0)
     for (i,sol) in enumerate(dynamicsolutions)
         # Ignore any imaginary solutions
         if !hasimaginary(sol)

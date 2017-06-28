@@ -6,8 +6,8 @@ function RegimeParameterDecomposition(parameter_values::Array{Float64,1},ergodic
 end
 
 function formatparametervalues(numregimes,numparameters,parameter_values,parameter_names)
-    formatted = Array(Float64,numregimes,numparameters)
-    switching = Array(Bool,length(parameter_names))
+    formatted = Array{Float64}(numregimes,numparameters)
+    switching = BitArray(length(parameter_names))
     fill!(switching,false)
     for (p,value,name) in zip(1:numparameters,parameter_values,parameter_names)
         if !isa(value,Number)
@@ -25,15 +25,15 @@ function formatparametervalues(numregimes,numparameters,parameter_values,paramet
 end
 
 function createsymversions(vars::Array{String,1},suffix=""::String)
-    out = Array(SymPy.Sym,length(vars))
+    out = Array{SymPy.Sym}(length(vars))
     for (i,var) in enumerate(vars)
         out[i] = Sym(string(var,suffix))
     end
     return out
 end    
 
-function createsymparameters(names::Array{String,1},switches::Array{Bool,1})
-    out = Array(SymPy.Sym,2,length(names))
+function createsymparameters(names::Array{String,1},switches::BitArray{1})
+    out = Array{SymPy.Sym}(2,length(names))
     for (i,name,switch) in zip(1:length(names),names,switches)
         if switch
             out[1,i] = Sym("$(name)_R")
@@ -46,9 +46,9 @@ function createsymparameters(names::Array{String,1},switches::Array{Bool,1})
     return out
 end
 
-function createSSparameters(numparameters::Int,parameter_affectsSS::Array{Bool,1},barversions::Array{SymPy.Sym},
-			     parameter_names::Array{String},parameters::Array{SymPy.Sym},switching::Array{Bool,1})
-    parametersSS = Array(SymPy.Sym,numparameters)
+function createSSparameters(numparameters::Int,parameter_affectsSS::BitArray{1},barversions::Array{SymPy.Sym},
+			     parameter_names::Array{String},parameters::Array{SymPy.Sym},switching::BitArray{1})
+    parametersSS = Array{SymPy.Sym}(numparameters)
     for p = 1:numparameters
         if parameter_affectsSS[p]
             parametersSS[p] = barversions[p]
@@ -66,9 +66,9 @@ end
 function decomposeparameters(parameters,switching,affectsSS,parameter_values,ergodic,numparameters,numregimes)
     
     # Preallocate output arrays
-    parameter_decomposition = Array(RegimeParameterDecomposition,numparameters)
-    parameter_bar_sym = Array(SymPy.Sym,numparameters)
-    parameter_regime_sym = Array(SymPy.Sym,numregimes,numparameters)
+    parameter_decomposition = Array{RegimeParameterDecomposition}(numparameters)
+    parameter_bar_sym = Array{SymPy.Sym}(numparameters)
+    parameter_regime_sym = Array{SymPy.Sym}(numregimes,numparameters)
     
     sympyzero = Sym(0.0)
     
@@ -96,7 +96,7 @@ function decomposeparameters(parameters,switching,affectsSS,parameter_values,erg
 end
 
 function creategenerichats(names,affectsSS)
-    generics = Array(SymPy.Sym,2,length(affectsSS))
+    generics = Array{SymPy.Sym}(2,length(affectsSS))
     sympyzero = Sym(0.0)
     for (i,name) in enumerate(names)
         if affectsSS[i]
