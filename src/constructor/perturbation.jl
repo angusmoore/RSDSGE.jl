@@ -1,14 +1,14 @@
 function createarglist(parameters,vars,transmatrix)
-    arg = Array(SymPy.Sym,1)
+    arg = Array{SymPy.Sym}(1)
     arg = [transmatrix.completelygeneric] # Transition prob first
     append!(arg,vars.contemps_sym) # Add in the steady state values
     # Non-switching vars first
-    append!(arg,parameters.generic_sym[1,!parameters.isswitching])
+    append!(arg,parameters.generic_sym[1,.!parameters.isswitching])
     # For parameters that affect SS, just need the bar version
     append!(arg,parameters.bar_sym[parameters.affectsSS])
     # Finally, for parameters that switch but _don't_ affect SS, need both R and and RP version
-    append!(arg,parameters.generic_sym[1,parameters.isswitching & !parameters.affectsSS])
-    append!(arg,parameters.generic_sym[2,parameters.isswitching & !parameters.affectsSS])
+    append!(arg,parameters.generic_sym[1,parameters.isswitching .& .!parameters.affectsSS])
+    append!(arg,parameters.generic_sym[2,parameters.isswitching .& .!parameters.affectsSS])
     return arg
 end
 
@@ -26,7 +26,7 @@ end
 function createXx(meta,vars,Xs,usewhichstates)
     select = usewhichstates[vars.isstate]
     allregimes = Xs[:,select,:]
-    out = Array(SymPy.Sym,0,countnz(usewhichstates))
+    out = Array{SymPy.Sym}(0,countnz(usewhichstates))
     for r = 1:meta.numregimes
         out = vcat(out,allregimes[:,:,r])
     end   
@@ -34,7 +34,7 @@ function createXx(meta,vars,Xs,usewhichstates)
 end
 
 function createXs(meta,vars,usevar)
-    out = Array(SymPy.Sym,countnz(usevar),meta.numstates,meta.numregimes)
+    out = Array{SymPy.Sym}(countnz(usevar),meta.numstates,meta.numregimes)
     for r = 1:meta.numregimes
         for (sstep,sindex) in enumerate(vars.states_indices)
             statename = vars.names[sindex]
@@ -48,7 +48,7 @@ end
 
 function createcoefficient(equations,vars,transprob,subsargs)
     if isempty(vars) || isempty(equations)
-        return Array(SymPy.Sym,size(equations,1),size(vars,1))
+        return Array{SymPy.Sym}(size(equations,1),size(vars,1))
     else
         deriv = jacobian(equations,vars)
         deriv = SymPy.subs(deriv,subsargs...)
@@ -125,12 +125,12 @@ function whichvariables(vars,equation)
     has_contemps = expressioncontains(equation,vars.contemps_sym)
     has_state = expressioncontains(equation, vars.states_sym)
     # now union across and negate out any exogenous vars
-    has_vars = (has_leads | has_contemps)
+    has_vars = (has_leads .| has_contemps)
     # Make any states true as well
     has_vars[vars.states_indices[has_state]] = true
     
     # Union across any contemp or lead versions of the state
-    has_state = has_vars[vars.states_indices] | has_state
+    has_state = has_vars[vars.states_indices] .| has_state
 
     return has_vars, has_state
 end
@@ -145,7 +145,7 @@ function checkredundancy(vars,block,list)
     # Do the easiest check first. Is it just an existing block with tacked on exo or static
     for j in 1:length(list)
         combo = list[j].vars
-        if all(vars.isexo[block.vars & !combo] | vars.isstatic[block.vars & !combo])
+        if all(vars.isexo[block.vars. & .!combo] .| vars.isstatic[block.vars .& .!combo])
             return true
         end
     end
@@ -155,14 +155,14 @@ function checkredundancy(vars,block,list)
         combo = falses(length(list[1].vars))
         for j in 1:length(useblocks)
             if useblocks[j]
-                combo = combo | list[j].vars
+                combo = combo .| list[j].vars
             end
         end
         if combo == block.vars
             return true
         end
         # Finally, if all the block is doing is adding an extra exogenous equation, that's not useful either
-        if all(vars.isexo[block.vars & !combo])
+        if all(vars.isexo[block.vars .& .!combo])
             return true
         end
     end
@@ -175,20 +175,20 @@ function removeredundant(vars,blocks)
         isredundant[i] = checkredundancy(vars,blocks[i],blocks[1:(i-1)])
     end
     println(" $(countnz(isredundant)) of them are redundant.")
-    return blocks[!isredundant]
+    return blocks[.!isredundant]
 end
     
 function findblocks(meta,vars,equations)
     # First, figure out which variables are in which equations
     numeqs = meta.numvars
-    expressionsymbols = Array(Bool,meta.numvars,numeqs)
-    expressionstates = Array(Bool,meta.numstates,numeqs)
+    expressionsymbols = BitArray(meta.numvars,numeqs)
+    expressionstates = BitArray(meta.numstates,numeqs)
     for (i,equation) in enumerate(equations.syms)
         expressionsymbols[:,i],expressionstates[:,i] = whichvariables(vars,equation)
     end
     
     numcombos = 2^numeqs-1
-    blocks = Array(Block,0)
+    blocks = Array{Block}(0)
     for i = 1:numcombos
         whichequations = comboasbitarray(i,numeqs)
         blocknumeqs = countnz(whichequations)
@@ -198,7 +198,7 @@ function findblocks(meta,vars,equations)
             # Candidate blocks. First check if it's all exogenous. If so, don't bother.
             # Similarly, if the block is just all equations except statics or exos, don't bother.
             # Finally, if it contains more than 60 per cent of the equations, don't bother. This is an ad hoc way to avoid a very large number of blocks, which enourmously slows down the code.
-            if !all(vars.isexo[blockvars]) && !all(equations.isstatic[!whichequations] | equations.isexo[!whichequations]) && blocknumeqs < 0.6*numeqs
+            if !all(vars.isexo[blockvars]) && !all(equations.isstatic[.!whichequations] .| equations.isexo[.!whichequations]) && blocknumeqs < 0.6*numeqs
                 push!(blocks,Block(blocknumvars,whichequations,blockvars,squeeze(any(expressionstates[:,whichequations],2),2)))
             end
         end
@@ -237,11 +237,11 @@ function PerturbationSystem(meta,parameters,vars,shocks,equations,steadystate,tr
     """
     
     # First, figure out the classification of each variable
-    isJ = !vars.isstate & !vars.isexo & !vars.isstatic
+    isJ = .!vars.isstate .& .!vars.isexo .& .!vars.isstatic
     isY = copy(vars.isstatic)
-    isW = !vars.isstate & vars.isexo
-    isZ = vars.isstate & vars.isexo
-    isX = vars.isstate & !vars.isexo
+    isW = .!vars.isstate .& vars.isexo
+    isZ = vars.isstate .& vars.isexo
+    isX = vars.isstate .& .!vars.isexo
     varnums = range(1,meta.numvars)
     Jindices = varnums[isJ]
     Yindices = varnums[isY]

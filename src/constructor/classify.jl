@@ -12,9 +12,9 @@ function appearsmorethanonce(var::SymPy.Sym,system::Array{SymPy.Sym})
     return false
 end
 
-function findstaticexpressions(expressions_sym::Array{SymPy.Sym},leads_sym::Array{SymPy.Sym},contemps_sym::Array{SymPy.Sym},states_sym::Array{SymPy.Sym},var_isstate::Array{Bool},eq_isexo::Array{Bool},var_isexo::Array{Bool})
+function findstaticexpressions(expressions_sym::Array{SymPy.Sym},leads_sym::Array{SymPy.Sym},contemps_sym::Array{SymPy.Sym},states_sym::Array{SymPy.Sym},var_isstate::BitArray,eq_isexo::BitArray,var_isexo::BitArray)
     numvars = length(contemps_sym)
-    var_isstatic = copy(!var_isstate)
+    var_isstatic = copy(.!var_isstate)
     expression_isstatic = trues(length(expressions_sym))
     for (i,expression) in enumerate(expressions_sym)
         for (j,lead) in enumerate(leads_sym)
@@ -34,10 +34,10 @@ function findstaticexpressions(expressions_sym::Array{SymPy.Sym},leads_sym::Arra
     end
     
     # Finally, if a static variable appears only _once_ in the whole system, the equation it appears in has to be a static
-    tocheck = Array(Bool,numvars)
+    tocheck = BitArray(numvars)
     fill!(tocheck,false)
     for (i,var) in enumerate(contemps_sym)
-        if var_isstatic[i] && !appearsmorethanonce(var,expressions_sym)
+        if var_isstatic[i] && .!appearsmorethanonce(var,expressions_sym)
             tocheck[i] = true
         end
     end
@@ -50,8 +50,8 @@ function findstaticexpressions(expressions_sym::Array{SymPy.Sym},leads_sym::Arra
     end
         
     # Now negate out any exos, since they'll be solved separately
-    expression_isstatic = expression_isstatic & !eq_isexo
-    var_isstatic = var_isstatic & !var_isexo
+    expression_isstatic = expression_isstatic .& .!eq_isexo
+    var_isstatic = var_isstatic .& .!var_isexo
 
     return expression_isstatic,var_isstatic
 end
@@ -68,7 +68,7 @@ end
 
 function expressioncontains(expression::SymPy.Sym,symbols::Array{SymPy.Sym})
     count = 0
-    isin = Array(Bool,length(symbols))
+    isin = BitArray(length(symbols))
     fill!(isin,false)
     for (i,symbol) in enumerate(symbols)
         if symbol in SymPy.free_symbols(expression)
@@ -79,7 +79,7 @@ function expressioncontains(expression::SymPy.Sym,symbols::Array{SymPy.Sym})
 end
 
 function checkifcontainsforward(expressions::Array{SymPy.Sym},leads::Array{SymPy.Sym})
-    contains = Array(Bool,length(expressions))
+    contains = BitArray(length(expressions))
     fill!(contains,false)
     for (i,expression) in enumerate(expressions)
         contains[i] = expressioncontains(expression,leads,true)
@@ -90,13 +90,13 @@ end
 function findexoequations(expressions::Array{SymPy.Sym},leads::Array{SymPy.Sym},contemps::Array{SymPy.Sym})
     contains_forward = checkifcontainsforward(expressions,leads)
     restrictedindices = collect(1:length(expressions))
-    restrictedsystem = expressions[!contains_forward]
-    restrictedindices = restrictedindices[!contains_forward]
+    restrictedsystem = expressions[.!contains_forward]
+    restrictedindices = restrictedindices[.!contains_forward]
     contempindices = collect(1:length(contemps))
     
     endocontemps = copy(contemps)
-    exocontemps = Array(Int,0)
-    exoequations = Array(Int,0)
+    exocontemps = Array{Int}(0)
+    exoequations = Array{Int}(0)
     
     somethingchanged = true
     while somethingchanged
@@ -108,8 +108,8 @@ function findexoequations(expressions::Array{SymPy.Sym},leads::Array{SymPy.Sym},
                 # Now figure out which one
                 newexo = contempindices[indices]
                 # Remove it from the list of endos
-                endocontemps = endocontemps[!indices]
-                contempindices = contempindices[!indices]
+                endocontemps = endocontemps[.!indices]
+                contempindices = contempindices[.!indices]
                 push!(exocontemps,newexo[1])
                 push!(exoequations,expression_index)
                 keepexpression[i] = false
@@ -122,10 +122,10 @@ function findexoequations(expressions::Array{SymPy.Sym},leads::Array{SymPy.Sym},
     end
     
     # Convert to boolean arrays
-    expression_isexo = Array(Bool,length(expressions))
+    expression_isexo = BitArray(length(expressions))
     fill!(expression_isexo,false)
     expression_isexo[exoequations] = true
-    var_isexo = Array(Bool,length(contemps))
+    var_isexo = BitArray(length(contemps))
     fill!(var_isexo,false)
     var_isexo[exocontemps] = true
     if countnz(expression_isexo) != countnz(var_isexo)

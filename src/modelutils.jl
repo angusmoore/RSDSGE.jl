@@ -1,11 +1,11 @@
 function findSS!(model::RSDSGEModel,guess::Array{Float64,1})
-    ssparameters = Array(Float64,model.meta.numparameters)
+    ssparameters = Array{Float64}(model.meta.numparameters)
     for (p,affects) in enumerate(model.parameters.affectsSS)
         if affects
             ssparameters[p] = model.parameters.decomposition[p].bar
         end
     end
-    ssparameters[!model.parameters.affectsSS] = model.parameters.values[1,!model.parameters.affectsSS]
+    ssparameters[.!model.parameters.affectsSS] = model.parameters.values[1, .!model.parameters.affectsSS]
     
     sswrapper = x->evaluateSS(model.steadystate.system,x,ssparameters)
     print("Solving for steady state...")
