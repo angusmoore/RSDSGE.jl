@@ -46,11 +46,16 @@ function createXs(meta,vars,usevar)
     return out
 end
 
-function createcoefficient(equations,vars,transprob,subsargs)
+function createcoefficient(equations::Array{SymPy.Sym, 1},vars::Array{SymPy.Sym, 1},transprob,subsargs)
     if isempty(vars) || isempty(equations)
         return Array{SymPy.Sym}(size(equations,1),size(vars,1))
     else
-        deriv = jacobian(equations,vars)
+        deriv = Array{SymPy.Sym}(length(equations), length(vars))
+        for (i, equation) in enumerate(equations)
+            for (j, var) in enumerate(vars)
+                deriv[i, j] = SymPy.diff(equation, var)
+            end
+        end
         deriv = SymPy.subs(deriv,subsargs...)
         return transprob*deriv
     end
