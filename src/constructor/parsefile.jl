@@ -9,7 +9,7 @@ function RSDSGEModel(file::String)
     f = open(file)
 	modelfilestring = readlines(f)
     close(f)
-    
+
     # Find the indexes of important things
     ends = Bool[strip(line) == "end" for line in modelfilestring]
     ends = (1:length(modelfilestring))[ends]
@@ -21,11 +21,11 @@ function RSDSGEModel(file::String)
     transmatrix = findline("transmatrix: [",modelfilestring)
     transmatrixend = minimum((transmatrix:length(modelfilestring))[Bool[endswith(strip(line),"]") for line in modelfilestring[transmatrix:end]]])
     ssguess = findline("ssguess:",modelfilestring)
-	
+
     equationend = minimum(ends[ends.>equations])
     ssguessend = minimum(ends[ends.>ssguess])
     valuesend = minimum(ends[ends.>parametervalues])
-	
+
     vars = parsevars(modelfilestring[vars])
     shocks = parseshocks(modelfilestring[shocks])
     parameters = parseparameters(modelfilestring[parameters])
@@ -33,25 +33,26 @@ function RSDSGEModel(file::String)
     equations = parseequations(modelfilestring[(equations+1):(equationend-1)])
     transmatrix = parsetransmatrix(modelfilestring[transmatrix:transmatrixend])
     ssguess_dict = splitonequals(modelfilestring[(ssguess+1):(ssguessend-1)])
-	
+
     ssguess = zeros(Float64,length(vars)) # Default to zero if unset
     for (key,val) in ssguess_dict
-	if countnz(vars.==key) == 0
-	    error("You have set a steady state guess for $key, but it is not a declared variable.")
+        idx = findfirst(x -> x == key, vars)
+        if isnothing(idx)
+            error("You have set a steady state guess for $key, but it is not a declared variable.")
         else
-            ssguess[vars.==key] = val
+            ssguess[idx] = val
         end
     end
-    
-    return RSDSGEModel(vars,shocks,parameters,equations,parametervalues,transmatrix,ssguess)
+
+    return RSDSGEModel(string.(vars),string.(shocks),string.(parameters),string.(equations),parametervalues,transmatrix,ssguess)
 end
 
 function findline(keyword,modelfilestring)
     indices = Bool[startswith(strip(line),keyword) for line in modelfilestring]
-    if countnz(indices) != 1
-	error("Model file contains $(countnz(indices)) occurences of the $keyword keyword. It must appear only once.")
+    if count(!iszero, indices) != 1
+	error("Model file contains $(count(!iszero, indices)) occurences of the $keyword keyword. It must appear only once.")
     end
-	
+
     return (1:length(modelfilestring))[indices][1] # The extra one gets the scalar, rather than a 1 element array
 end
 
@@ -72,11 +73,11 @@ end
 
 function parsetransmatrix(transmatrixstring)
     numregimes = length(transmatrixstring)
-    transmatrix = Array{Float64}(numregimes,numregimes)
+    transmatrix = Array{Float64}(undef,numregimes,numregimes)
     for r in 1:numregimes
 	if r == 1
 	    # First line, need to strip off the first bit
-	    warn("Make this more robust by finding [ instead of assuming it is 15")
+	    @warn "Make this more robust by finding [ instead of assuming it is 15"
 	    transmatrixstring[r] = transmatrixstring[r][15:end]
 	elseif r == numregimes
 	    # Last line, strip off the closing ]
@@ -125,37 +126,31 @@ function splitonequals(input)
 end
 
 function parseparametervalues(values,parameters)
-    parametervalues = Array{Any}(length(parameters))
+    parametervalues = Array{Any}(undef, length(parameters))
     values_dict = splitonequals(values)
     unset = trues(length(parameters))
     for (key,val) in values_dict
-	if countnz(parameters.==key) == 0
-	    error("You have set a parameter value for $key, but it is not a declared parameter.")
+        idx = findfirst(p -> p == key, parameters)
+        if isnothing(idx)
+            error("You have set a parameter value for $key, but it is not a declared parameter.")
         else
-            parametervalues[parameters.==key] = val
-	    unset[parameters.==key] = false
+            parametervalues[idx] = val
+	        unset[idx] = false
         end
     end
     if any(unset)
-	error("You have not set a value for parameter(s): $(parameters[unset]).")
+	    error("You have not set a value for parameter(s): $(parameters[unset]).")
     end
     return parametervalues
 end
 
 function parseequations(equations)
-    out = Array{String}(length(equations))
-    for i in eachindex(equations)
-	out[i] = strip(equations[i])
-    end
-    return out
+    map(strip, equations)
 end
 
 
 function splitoncomma(in)
     list = split(in,",")
-    out = Array{String}(length(list))
-    for i in eachindex(list)
-	out[i] = strip(list[i])
-    end
-    return out
+
+    return map(strip, list)
 end

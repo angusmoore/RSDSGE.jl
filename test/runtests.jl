@@ -1,18 +1,21 @@
 using RSDSGE
-using JLD
-using Base.Test
+using JLD2
+using Test
+
+using Aqua
+Aqua.test_all(RSDSGE)
 
 # Run the tests of the model constructor
 @testset "Model setup" begin
-    include("modelsetup.jl")
+    include("test-modelsetup.jl")
 end
 
 # Check model solving works properly
 @testset "Solving" begin
-    include("solve.jl")
+    include("test-solve.jl")
 end
 
 # Check model utils
 @testset "Model utils" begin
-    include("modelutils.jl")
+    include("test-modelutils.jl")
 end

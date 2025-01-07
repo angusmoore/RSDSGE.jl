@@ -1,0 +1,39 @@
+name: Run JuliaFormatter on main
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check if Julia is already available in the PATH
+        id: julia_in_path
+        run: which julia
+        continue-on-error: true
+      - name: Install Julia, but only if it is not already available in the PATH
+        uses: julia-actions/setup-julia@v1
+        with:
+          version: '1'
+          arch: ${{ runner.arch }}
+        if: steps.julia_in_path.outcome != 'success'
+      - name: Install JuliaFormatter and format
+        run: |
+          julia -e 'import Pkg; Pkg.add("JuliaFormatter")'
+          julia -e 'using JuliaFormatter; format(".")'
+      - name: Create Pull Request
+        id: cpr
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.BOT_CREATE_PR_PAT }}
+          commit-message: Format .jl files
+          title: 'Automatic JuliaFormatter.jl run'
+          branch: auto-juliaformatter-pr
+          delete-branch: true
+          labels: formatting, automated pr
+      - name: Check outputs
+        run: |
+          echo "Pull Request Number - ${{ steps.cpr.outputs.pull-request-number }}"
+          echo "Pull Request URL - ${{ steps.cpr.outputs.pull-request-url }}"

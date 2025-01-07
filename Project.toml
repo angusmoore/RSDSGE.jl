@@ -1,0 +1,37 @@
+name = "RSDSGE"
+uuid = "b5a53cc7-9658-4d3e-853e-4eeed0a5c6e5"
+authors = ["Angus Moore <18376371+angusmoore@users.noreply.github.com>"]
+version = "0.2.0"
+
+[deps]
+Groebner = "0b43b601-686d-58a3-8a1c-6623616c7cd4"
+JLD = "4138dd39-2aa7-5051-a626-17a0bb65d9c8"
+JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+NLsolve = "2774e3e8-f4cf-5e23-947b-6d7e65073b56"
+Polynomials = "f27b6e38-b328-58d1-80ce-0feddd5e7a45"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+SymbolicUtils = "d1185830-fcd6-423d-90d6-eec64667417b"
+Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
+
+[compat]
+Aqua = "0.8"
+Groebner = "0.8"
+JLD = "0.13.5"
+JLD2 = "0.5"
+LinearAlgebra = "1.11"
+NLsolve = "4.5"
+Polynomials = "4"
+SparseArrays = "1.11"
+SymbolicUtils = "3.7"
+Symbolics = "6"
+Test = "1"
+julia = "1"
+
+[extras]
+Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
+JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Aqua", "JLD2", "Test"]

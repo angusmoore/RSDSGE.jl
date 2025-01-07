@@ -1,12 +1,6 @@
 function findSS!(model::RSDSGEModel,guess::Array{Float64,1})
-    ssparameters = Array{Float64}(model.meta.numparameters)
-    for (p,affects) in enumerate(model.parameters.affectsSS)
-        if affects
-            ssparameters[p] = model.parameters.decomposition[p].bar
-        end
-    end
-    ssparameters[.!model.parameters.affectsSS] = model.parameters.values[1, .!model.parameters.affectsSS]
-    
+    ssparameters = [affects ? model.parameters.decomposition[p].bar : model.parameters.values[1, p] for (p,affects) in enumerate(model.parameters.affectsSS)]
+
     sswrapper = x->evaluateSS(model.steadystate.system,x,ssparameters)
     print("Solving for steady state...")
     nlout = NLsolve.nlsolve(NLsolve.not_in_place(sswrapper), guess)
@@ -35,7 +29,7 @@ function updateparameters!(model::RSDSGEModel,index::Int,value::Number,reevaluat
     if model.parameters.isswitching[index]
         error("$(model.parameters.names[index]) is a state-dependent parameter, but you passed in only one value.")
     end
-    model.parameters.values[:,index] = value
+    model.parameters.values[:,index] .= value
     # Re-evaluate SS. I currently don't track whether non-switching parameters affect the SS or not. I should, because I could be much more
     # efficient if I don't need to re-evaluate the SS on all parameters
     if reevaluateSS

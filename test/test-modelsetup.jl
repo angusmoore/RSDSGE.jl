@@ -33,9 +33,11 @@ function loadFRWZ()
 
     shocks = ["e_eps"]
 
-    expressions = ["1/c = betta*1/c(+1)*exp((mu_R + sigma*eps)/(alpha-1))*(alpha*exp(mu_RP + sigma*eps(+1))*k^(alpha-1)+1-delta)",
-    "c + k*exp((mu_R + sigma*eps)/(1-alpha)) = exp(mu_R+sigma*eps)*(k(-1))^(alpha) + (1-delta)*k(-1)",
-    "eps = e_eps"]
+    expressions = [
+        "1/c = betta*1/c(+1)*exp((mu_R + sigma*eps)/(alpha-1))*(alpha*exp(mu_RP + sigma*eps(+1))*k^(alpha-1)+1-delta)",
+        "c + k*exp((mu_R + sigma*eps)/(1-alpha)) = exp(mu_R+sigma*eps)*(k(-1))^(alpha) + (1-delta)*k(-1)",
+        "eps = e_eps"
+    ]
 
     return RSDSGEModel(vars,shocks,parameters,expressions,parameter_values,transmatrix,ones(Float64,3))
 end
@@ -46,7 +48,7 @@ function testloadingRBCfromFRWZ()
 end
 
 function testloadingfromfile()
-    RSDSGEModel("../examples/RBC.txt")
+    RSDSGEModel(joinpath(pkgdir(RSDSGE), "examples", "RBC.txt"))
     return true
 end
 

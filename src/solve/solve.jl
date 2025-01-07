@@ -55,7 +55,7 @@ struct RSDSGESolution
     MC::Array{Float64,3}
 end
 
-function EvaluatedMatrices(model,r)
+function EvaluatedMatrices(model::RSDSGEModel,r::Int)
     A1 = createstacked(model,model.perturbationsystem.A1,r)
     A2 = createstacked(model,model.perturbationsystem.A2,r)
     A3 = createstacked(model,model.perturbationsystem.A3,r)
@@ -74,20 +74,20 @@ function EvaluatedMatrices(model,r)
     multiplybyhats!(C_constant_p,model,r,false)
     # Collapse the constant matrices
     C_constant += C_constant_p
-    C_constant = sum(C_constant,2)
+    C_constant = sum(C_constant,dims=2)
     return EvaluatedMatrices(A1,A2,A3,A4,B1,B2,B3,B4,B5,C1,C2,C_shocks,C_constant)
 end
 
-function evaluatematrices(model)
-    out = Array{EvaluatedMatrices}(0)
+function evaluatematrices(model::RSDSGEModel)
+    out = Vector{EvaluatedMatrices}()
     for r in 1:model.meta.numregimes
         push!(out,EvaluatedMatrices(model,r))
     end
     return out
 end
 
-function createarglistvalues(model,r,rp)
-    arg = Array{Float64}(1)
+function createarglistvalues(model::RSDSGEModel,r::Integer,rp::Integer)
+    arg = Vector{Float64}(undef, 1)
     arg = [model.transmatrix.values[r,rp]] # Transition prob first
     append!(arg,model.steadystate.values) # Add in the steady state values
     # Non-switching vars first
@@ -100,19 +100,16 @@ function createarglistvalues(model,r,rp)
     return arg
 end
 
-function evaluate(model,fmatrix,r,rp)
+function evaluate(model::RSDSGEModel,fmatrix::Matrix{Function},r::Integer,rp::Integer)
     args = createarglistvalues(model,r,rp)
     out = zeros(Float64,size(fmatrix)...)
-    if nnz(fmatrix) > 0
-        R,C,F = findnz(fmatrix)
-        for (r,c,f) in zip(R,C,F)
-            out[r,c] = f(args...)
-        end
+    for i in eachindex(fmatrix)
+        out[i] = fmatrix[i](args...)
     end
     return out
 end
 
-function createsummed(model,fmatrix,r)
+function createsummed(model::RSDSGEModel,fmatrix,r::Integer)
     out = zeros(Float64,size(fmatrix)...)
     if !isempty(fmatrix)
         for rp in 1:model.meta.numregimes
@@ -122,7 +119,7 @@ function createsummed(model,fmatrix,r)
     return out
 end
 
-function createstacked(model,fmatrix,r)
+function createstacked(model::RSDSGEModel,fmatrix::Matrix{Function},r::Integer)
     if !isempty(fmatrix)
         out = zeros(size(fmatrix,1),0)
         for rp in 1:model.meta.numregimes
@@ -143,7 +140,7 @@ function multiplybyhats!(C_constant,model,r,today)
         for p in 1:model.meta.numparameters
             if model.parameters.affectsSS[p]
                 i+=1
-                x = (rp-1)*countnz(model.parameters.affectsSS) + i
+                x = (rp-1)*count(!iszero, model.parameters.affectsSS) + i
                 for eq in 1:size(C_constant,1)
                     if today
                         C_constant[eq,x] = C_constant[eq,x]*model.parameters.decomposition[p].hat[r]
@@ -157,7 +154,7 @@ function multiplybyhats!(C_constant,model,r,today)
     return
 end
 
-function substatics(model,m,r)
+function substatics(model::RSDSGEModel,m,r)
     A1 = m.A1[model.equations.isstatic,:]
     A2 = m.A2[model.equations.isstatic,:]
     A3 = m.A3[model.equations.isstatic,:]
@@ -172,15 +169,11 @@ function substatics(model,m,r)
     return StaticSub(-B5\A1,-B5\A2,-B5\A3,-B5\A4,-B5\B1,-B5\B2,-B5\B3,-B5\B4,-B5\C1,-B5\C2)
 end
 
-function substatics(model,m)
-    solutions = Array{StaticSub}(model.meta.numregimes)
-    for r in 1:model.meta.numregimes
-        solutions[r] = substatics(model,m[r],r)
-    end
-    return solutions
+function substatics(model::RSDSGEModel,m)
+    return StaticSub[substatics(model,m[r],r) for r in 1:model.meta.numregimes]
 end
 
-function solveexos(model,m,staticsol,r)
+function solveexos(model::RSDSGEModel,m::EvaluatedMatrices,staticsol::StaticSub,r::Int)
     # These shouldn't be needed
     A1 = m.A1[model.equations.isexo,:]
     A2 = m.A2[model.equations.isexo,:]
@@ -205,47 +198,29 @@ function solveexos(model,m,staticsol,r)
     B4 += B5*staticsol.YB4
     C1 += B5*staticsol.YC1
     C2 += B5*staticsol.YC2
-    
-    # These should all be non zero. This is just double checking that. I'll remove these ops for production, since
-    # they carry performance cost.
-    if countnz(A1)>0
-        error("Non-zero A1 entries in exo block")
-    end
-    if countnz(A2)>0
-        error("Non-zero A2 entries in exo block")
-    end
-    if countnz(A3)>0
-        error("Non-zero A3 entries in exo block")
-    end
-    if countnz(A4)>0
-        error("Non-zero A4 entries in exo block")
-    end
-    if countnz(B1)>0
-        error("Non-zero B1 entries in exo block")
-    end
-    if countnz(B3)>0
-        println(full(B3))
-        error("Non-zero B3 entries in exo block")
-    end
+
+    # These should all be non zero. This is just double checking that.
+    @assert count(!iszero, A1) == 0 "Non-zero A1 entries in exo block"
+    @assert count(!iszero, A2) == 0 "Non-zero A2 entries in exo block"
+    @assert count(!iszero, A3) == 0 "Non-zero A3 entries in exo block"
+    @assert count(!iszero, A4) == 0 "Non-zero A4 entries in exo block"
+    @assert count(!iszero, B1) == 0 "Non-zero B1 entries in exo block"
+    @assert count(!iszero, B3) == 0 "Non-zero B3 entries in exo block"
 
     sol = -hcat(B2,B4)\hcat(C1,C2)
-    W = sol[1:countnz(model.perturbationsystem.isW),:]
-    Z = sol[(1+countnz(model.perturbationsystem.isW)):end,:]
+    W = sol[1:count(!iszero, model.perturbationsystem.isW),:]
+    Z = sol[(1+count(!iszero, model.perturbationsystem.isW)):end,:]
     return ExoSolution(W,Z)
 end
 
-function solveexos(model,m,staticsubs)
-    solutions = Array{ExoSolution}(model.meta.numregimes)
-    for r in 1:model.meta.numregimes
-        solutions[r] = solveexos(model,m[r],staticsubs[r],r)
-    end
-    return solutions
+function solveexos(model::RSDSGEModel,m,staticsubs)
+    return ExoSolution[solveexos(model,m[r],staticsubs[r],r) for r in 1:model.meta.numregimes]
 end
 
-function arrangeexomatrices(model,exosols)
-    nz = countnz(model.perturbationsystem.isZ)
-    nw = countnz(model.perturbationsystem.isW)
-    nx = countnz(model.perturbationsystem.isX)
+function arrangeexomatrices(model::RSDSGEModel,exosols)
+    nz = count(!iszero, model.perturbationsystem.isZ)
+    nw = count(!iszero, model.perturbationsystem.isW)
+    nx = count(!iszero, model.perturbationsystem.isX)
     Wz = zeros(Float64,0,nz)
     Zz = zeros(Float64,0,nz)
     for r in 1:model.meta.numregimes
@@ -255,7 +230,7 @@ function arrangeexomatrices(model,exosols)
     return Wz,Zz
 end
 
-function createsystem(model,m,staticsol,exosol,Wz,Zz,dynamics,r)
+function createsystem(model::RSDSGEModel,m::EvaluatedMatrices,staticsol::StaticSub,exosol::ExoSolution,Wz::Matrix{Float64},Zz::Matrix{Float64},dynamics::Vector{Bool},r::Int)
     A1 = m.A1[dynamics,:]
     A2 = m.A2[dynamics,:]
     A3 = m.A3[dynamics,:]
@@ -267,7 +242,7 @@ function createsystem(model,m,staticsol,exosol,Wz,Zz,dynamics,r)
     B5 = m.B5[dynamics,:]
     C1 = m.C1_states[dynamics,:]
     C2 = m.C2_states[dynamics,:]
-    
+
     A1 += B5*staticsol.YA1
     A2 += B5*staticsol.YA2
     A3 += B5*staticsol.YA3
@@ -279,25 +254,25 @@ function createsystem(model,m,staticsol,exosol,Wz,Zz,dynamics,r)
     C1 += B5*staticsol.YC1
     C2 += B5*staticsol.YC2
 
-    return  A1*(model.perturbationsystem.Jx*model.perturbationsystem.Xs[:,:,r] + model.perturbationsystem.Jz*exosol.Z) + A2*(Wz*exosol.Z) + A3*(model.perturbationsystem.Xx*model.perturbationsystem.Xs[:,:,r] + model.perturbationsystem.Xz*exosol.Z) + A4*(Zz*exosol.Z) + B1*model.perturbationsystem.Js[:,:,r] + B2*exosol.W + B3*model.perturbationsystem.Xs[:,:,r] + B4*exosol.Z + hcat(C1, C2) 
+    return rationalize.(BigInt, A1)*(model.perturbationsystem.Jx*model.perturbationsystem.Xs[:,:,r] + model.perturbationsystem.Jz*rationalize.(BigInt, exosol.Z)) + rationalize.(BigInt, A2)*(rationalize.(BigInt, Wz)*rationalize.(BigInt, exosol.Z)) + rationalize.(BigInt, A3)*(model.perturbationsystem.Xx*model.perturbationsystem.Xs[:,:,r] + model.perturbationsystem.Xz*rationalize.(BigInt, exosol.Z)) + rationalize.(BigInt, A4*(Zz*exosol.Z)) + rationalize.(BigInt, B1)*model.perturbationsystem.Js[:,:,r] + rationalize.(BigInt, B2*exosol.W) + rationalize.(BigInt, B3)*model.perturbationsystem.Xs[:,:,r] + rationalize.(BigInt, B4*exosol.Z) + rationalize.(BigInt, hcat(C1, C2))
 end
 
-function createsystem(model,m,statics,exos,Wx,Wz)
-    dynamics = .!model.equations.isstatic .& .!model.equations.isexo
-    system = Array{SymPy.Sym}(countnz(dynamics)*model.meta.numregimes,model.meta.numstates)
+function createsystem(model::RSDSGEModel,m::Vector{EvaluatedMatrices},statics::Vector{StaticSub},exos::Vector{ExoSolution},Wx::Matrix{Float64},Wz::Matrix{Float64})
+    dynamics = map(((x,y),) -> !x && !y, zip(model.equations.isstatic, model.equations.isexo))
+    system = Array{Symbolics.Num}(undef, count(!iszero, dynamics)*model.meta.numregimes,model.meta.numstates)
     for r in 1:model.meta.numregimes
-        system[(1+(r-1)*countnz(dynamics)):r*countnz(dynamics),:] = createsystem(model,m[r],statics[r],exos[r],Wx,Wz,dynamics,r)
+        system[(1+(r-1)*count(!iszero, dynamics)):r*count(!iszero, dynamics),:] = createsystem(model,m[r],statics[r],exos[r],Wx,Wz,dynamics,r)
     end
-    return reshape(system,length(system)) # The reshape is needed because sympy can only take 1d arrays. It doesn't change anything important.
+    return reshape(system,length(system))
 end
 
-function markequations(model,block)
+function markequations(model::RSDSGEModel,block)
     dynamics = .!model.equations.isstatic .& .!model.equations.isexo
     forblock = falses(0,model.meta.numstates)
     removefromsystem = falses(0,model.meta.numstates)
-    keepeq = falses(countnz(dynamics),model.meta.numstates)
+    keepeq = falses(count(!iszero, dynamics),model.meta.numstates)
     keepeq[block.equations[dynamics],block.states] = true
-    removeeq = falses(countnz(dynamics),model.meta.numstates)
+    removeeq = falses(count(!iszero, dynamics),model.meta.numstates)
     removeeq[block.equations[dynamics],:] = true
     for r in 1:model.meta.numregimes
         forblock = vcat(forblock,keepeq)
@@ -312,21 +287,20 @@ function replaceblocks(model,block,system)
     tosubout = reshape(tosubout,length(tosubout))
     tosubout2 = model.perturbationsystem.Js[block.vars[model.perturbationsystem.isJ],.!block.states,:]
     tosubout = vcat(tosubout,reshape(tosubout2,length(tosubout2)))
-    
-    sympyzero = Sym(0.0)
-    zeroarray = Array{SymPy.Sym}(length(tosubout))
-    fill!(zeroarray,sympyzero)
+
+    zeroarray = Array{Symbolics.Num}(length(tosubout))
+    fill!(zeroarray, Symbolics.Num(0))
     replacearg = createpairedtuplelist(tosubout,zeroarray)
-    if !isempty(replacearg)>0
-        return squeeze(SymPy.subs(system,replacearg...),2),Dict{SymPy.Sym,SymPy.Sym}(zip(tosubout,zeroarray)) # I squeeze because subs returns a 2d with singleton trailing for some reason
+    if !isempty(replacearg) > 0
+        return squeeze(Symbolics.substitute(system,replacearg...),2),Dict{Symbolics.Num,Symbolics.Num}(zip(tosubout,zeroarray)) # I squeeze because subs returns a 2d with singleton trailing for some reason
     else
-        return system,Dict{SymPy.Sym,SymPy.Sym}()
+        return system,Dict{Symbolics.Num,Symbolics.Num}()
     end
 end
 
-function separateblocks(model,system)
-    restricteddecisionrules = Dict{SymPy.Sym,SymPy.Sym}() # To hold the decision rule solutions that are restricted to zero because of block exogeneity
-    blocks = Array{Array{SymPy.Sym,1}}(0)
+function separateblocks(model::RSDSGEModel,system::Vector{Symbolics.Num})
+    restricteddecisionrules = Dict{Symbolics.Num,Symbolics.Num}() # To hold the decision rule solutions that are restricted to zero because of block exogeneity
+    blocks = Vector{Vector{Symbolics.Num}}()
     usedinblock = falses(length(system))
     for block in model.perturbationsystem.blocks
         blockwhich,removewhich = markequations(model,block)
@@ -342,6 +316,7 @@ function separateblocks(model,system)
 end
 
 function subsdict(target,dictionary)
+    error("nope, replace me") # TODO: Remove this function
     subsargs = ()
     if !isempty(dictionary) > 0
         for (key,val) in dictionary
@@ -353,106 +328,144 @@ function subsdict(target,dictionary)
     end
 end
 
-function solveblocks(model,blocks,system,restricteddecisionrules,verbose::Bool,method)
-    blockdict = Dict{SymPy.Sym,SymPy.Sym}() # To hold the solutions to all the blocks
+function solveblocks(blocks::Vector{Vector{Symbolics.Num}},system::Vector{Symbolics.Num},restricteddecisionrules::Dict{Symbolics.Num, Symbolics.Num},verbose::Bool,method::Symbol)
+    blockdict = Dict{Symbolics.Num,Float64}() # To hold the solutions to all the blocks
     if length(blocks)>0
-        printlnif(verbose,"Solving the $(length(blocks)) model sub-blocks:")
+        verbose && println("Solving the $(length(blocks)) model sub-blocks:")
         for (i,block) in enumerate(blocks)
             printif(verbose,"Block $(i) of $(length(blocks)) ($(length(block)) equations)...")
-            if method == 1
-                sol = solve_withfallback(block)
-            elseif method == 2
+            if method == :symbolic
+                sol = symbolic_solve(block)
+                if length(sol) > 1
+                    error("Multiple solutions for blocks not handled")
+                end
+                sol = first(sol)
+                if hasimaginary(sol)
+                    error("Imaginary solution for block, not handled")
+                end
+                sol = Dict{Symbolics.Num,Float64}(k => real(v) for (k,v) in sol)
+            elseif method == :numeric
                 sol = numericsolve(reshape(block,length(block)))
             else
                 error("Option $(method) is not a valid solution method.")
             end
-            if !isa(sol,Dict)
-                error("Handling multiple solutions for blocks not yet implemented.")
-            end
             merge!(blockdict,sol)
-            printlnif(verbose,"done.")
+            verbose && println("done.")
         end
-        printif(verbose,"Subbing block solutions into the full system...")
+        verbose && print("Subbing block solutions into the full system...")
         system = subsdict(system,blockdict)
         system = subsdict(system,restricteddecisionrules)
         if ndims(system) > 1 && !isempty(system)
              # Squeeze because subs returns trailing singleton
             system = squeeze(system,2)
         end
-        printlnif(verbose,"done.")
+        verbose && println("done.")
     end
     return system,blockdict
 end
 
-function convert2rationals(system)
-    for (i,expression) in enumerate(system)
-        system[i]=SymPy.nsimplify(expression)
+function convert_to_polynomial(expr::SymbolicUtils.BasicSymbolic)
+    deg = Symbolics.degree(expr)
+    var = Symbolics.get_variables(expr)
+    if length(var) > 1
+        error("More than one unknown in polynomial")
     end
-    return system
+    var = first(var)
+    coeffs = ComplexF64[ComplexF64.(Symbolics.coeff(expr, var^d)) for d in 0:deg]
+    @assert length(coeffs) == deg + 1
+    return Polynomials.Polynomial(coeffs)
 end
 
-function systemissolvable(system)
-    if length(system) == length(SymPy.free_symbols(system))
-        return true
+function _iterate_next_solution!(solutions::Vector{Dict{Symbolics.Num,Union{ComplexF64,Float64}}}, idx::Int, gb::Vector{<:Symbolics.BasicSymbolic}, solve_for::Symbolics.BasicSymbolic)
+    this_solution = solutions[idx]
+    num_solved_for = length(this_solution)
+    gb_eq = gb[num_solved_for + 1]
+    eq = Symbolics.substitute(gb_eq, this_solution) # Pass in what we already know
+    poly = convert_to_polynomial(eq)
+    roots = Polynomials.roots(poly)
+
+    if length(roots) == 1
+        # Easy, single solution, so just mutate this Solution
+        solutions[idx][solve_for] = roots[1]
+        return solutions
+    elseif length(roots) > 1
+        # Harder, need to mutate this solutoin with the first root, and add new solution
+        base_sol = copy(this_solution)
+        solutions[idx][solve_for] = roots[1]
+        for r in roots[2:end]
+            newsol = copy(base_sol)
+            newsol[solve_for] = r
+            push!(solutions, newsol)
+        end
+
+        return solutions
     else
-        println(system)
-        println(SymPy.free_symbols(system))
-        error("Poorly specified system. You have $(length(system)) equations for $(length(SymPy.free_symbols(system))) unknowns.")
+        error("No roots for equation; should be impossible")
     end
 end
 
-function solve_withfallback(system)
-    # This function wraps solve to first try solving using floats. If that fails because sympy is sometimes inaccurate with floats
-    # it then converts to rationals and tries again.
+
+function symbolic_solve(system::Vector{Symbolics.Num})
     if !isempty(system)
-        if systemissolvable(system)
-            try 
-                solution = SymPy.solve(system,method="f5b")
-                return solution
-            catch
-                warn("Solve failed. Converting to rationals and trying again.") 
-                system = convert2rationals(system)
-                solution = SymPy.solve(system,method="f5b")
-                return solution
+        unknowns = unique(vcat(Symbolics.get_variables.(system)...))
+        if length(system) == length(unknowns)
+            # Pre-allocate solution storage
+            solutions = Vector{Dict{Symbolics.Num,Union{ComplexF64,Float64}}}()
+
+            # Rewrite the system into a solveable form
+            gb = Symbolics.groebner_basis(system, ordering = Groebner.Lex(unknowns...))
+            # First equation will be in terms of only the first variable in unknowns (and
+            # then recursively down the list - that's what the Lex ordering does)
+            gb = Symbolics.simplify.(gb) # gb is in polyform from symbolicutils, which doesn't play nice
+            poly = convert_to_polynomial(gb[1])# Need to use root finding from Polynomials.jl, so convert to that
+
+            # Get the roots for the first equation to seed the solution, and then start
+            # iterating (breadth-ish first) to flesh out all possible solution combinations
+            roots = Polynomials.roots(poly)
+            for root in roots
+                push!(solutions, Dict{Symbolics.Num,Union{ComplexF64,Float64}}(unknowns[end] => root))
             end
+
+            while any(x -> length(x) != length(unknowns), solutions)
+                # We have at least one solution in the solutions array that has not been
+                # fully fleshed out (ie the dictionary does not contain a solution for
+                # at least one of the unknowns)
+                idx = findfirst(x -> length(x) != length(unknowns), solutions)
+                _iterate_next_solution!(solutions, idx, gb, unknowns[end - length(solutions[idx])])
+            end
+
+            return solutions
+        else
+            error("Poorly specified system. You have $(length(system)) equations for $(length(Symbolics.get_variables(system))) unknowns.")
         end
     else
         # Sub-blocks account for the whole system. This is a no-op
-        return Dict{SymPy.Sym,SymPy.Sym}()
+        return Dict{Symbolics.Num,Symbolics.Num}()
     end
 end
 
-function lambdifysystem(system,args)
-    out = Array{Function}(length(system))
-    for (i,expr) in enumerate(system)
-        out[i] = SymPy.lambdify(expr,args)
-    end
-    return out
+function lambdifysystem(system::Vector{Symbolics.Num},args)
+    return Function[Symbolics.build_function(expr,args...,expression=Val{false}) for expr in system]
 end
 
-function evaluatearray(x,farray)
-    out = similar(x)
-    for (i,f) in enumerate(farray)
-        out[i] = f(x...)
-    end
-    return out
+function evaluatearray(x::Vector{<:Number},farray::Vector{Function})
+    return map(f -> f(x...), farray)
 end
 
-function numericsolve(system)
+function numericsolve(system::Vector{Symbolics.Num})
     if !isempty(system)
-        symbols = SymPy.free_symbols(system)
+        symbols = unique(vcat(Symbolics.get_variables.(system)...))
         tosolve = lambdifysystem(system,symbols)
         fwrap = x->evaluatearray(x,tosolve)
         nlout = NLsolve.nlsolve(NLsolve.not_in_place(fwrap), zeros(length(symbols)))
         if !NLsolve.converged(nlout)
             error("Numerical solver failed to converge.")
         end
-        dynamicsolutions = Dict{SymPy.Sym,Float64}(zip(symbols,nlout.zero))
-        return dynamicsolutions
+        return Dict{Symbolics.Num,Float64}(zip(symbols,nlout.zero))
     else
         # Sub-blocks account for the whole system. This is a no-op
-        return Dict{SymPy.Sym,SymPy.Sym}()
-    end  
+        return Dict{Symbolics.Num,Any}()
+    end
 end
 
 function hasimaginary(sol)
@@ -464,29 +477,21 @@ function hasimaginary(sol)
     return false
 end
 
-function dict2array(dict,indices)
-    out = Array{valtype(dict)}(size(indices))
-    for i in eachindex(indices)
-        out[i] = dict[indices[i]]
-    end
-    return out    
+function formatdynamicsolution(model::RSDSGEModel,solution::Dict)
+    return DynamicSolution[
+        DynamicSolution(
+            Symbolics.value.(map(i -> solution[i], model.perturbationsystem.Xs[:,:,r])), # have to unwrap the Symbolics.Num
+            Symbolics.value.(map(i -> solution[i], model.perturbationsystem.Js[:,:,r]))
+        )
+        for r in 1:model.meta.numregimes
+    ]
 end
 
-function formatdynamicsolution(model,solution::Dict)
-    out = Array{DynamicSolution}(model.meta.numregimes)
-    for r in 1:model.meta.numregimes
-        Xsols = dict2array(solution,model.perturbationsystem.Xs[:,:,r])
-        Jsols = dict2array(solution,model.perturbationsystem.Js[:,:,r])
-        out[r] = DynamicSolution(Xsols,Jsols)
-    end
-    return out
-end
-
-function arrangesolutionmatrices(model,exosolution,dynamicsolution)
-    Xx = Array{Float64}(0,countnz(model.perturbationsystem.isX[model.vars.isstate]))
-    Xz = Array{Float64}(0,countnz(model.perturbationsystem.isZ[model.vars.isstate]))
-    Jx = Array{Float64}(0,countnz(model.perturbationsystem.isX[model.vars.isstate]))
-    Jz = Array{Float64}(0,countnz(model.perturbationsystem.isZ[model.vars.isstate]))
+function arrangesolutionmatrices(model::RSDSGEModel,dynamicsolution::Vector{DynamicSolution})
+    Xx = zeros(Float64, 0,count(!iszero, model.perturbationsystem.isX[model.vars.isstate]))
+    Xz = zeros(Float64, 0,count(!iszero, model.perturbationsystem.isZ[model.vars.isstate]))
+    Jx = zeros(Float64, 0,count(!iszero, model.perturbationsystem.isX[model.vars.isstate]))
+    Jz = zeros(Float64, 0,count(!iszero, model.perturbationsystem.isZ[model.vars.isstate]))
     for r in 1:model.meta.numregimes
         Xx = vcat(Xx,dynamicsolution[r].X[:,model.perturbationsystem.isX[model.vars.isstate]])
         Jx = vcat(Jx,dynamicsolution[r].J[:,model.perturbationsystem.isX[model.vars.isstate]])
@@ -496,14 +501,13 @@ function arrangesolutionmatrices(model,exosolution,dynamicsolution)
     return Xx,Xz,Jx,Jz
 end
 
-function solvestatics(model,staticsols,exosols,dynamicsols,Xx,Xz,Jx,Jz,Wz,Zz)
+function solvestatics(model::RSDSGEModel,staticsols::Vector{StaticSub},exosols::Vector{ExoSolution},dynamicsols::Vector{DynamicSolution},Xx::Matrix{Float64},Xz::Matrix{Float64},Jx::Matrix{Float64},Jz::Matrix{Float64},Wz::Matrix{Float64},Zz::Matrix{Float64})
     # This function uses the exo and dynamic solutions to return the actual solutions for static variables, rather
     # than 'solutions' that just express them as a function of other variables
-    out = Array{StaticSolution}(model.meta.numregimes)
-    for (r,static,exo,dynamic) in zip(1:model.meta.numregimes,staticsols,exosols,dynamicsols)
-        out[r] = StaticSolution(static.YA1*(Jx*dynamic.X + Jz*exo.Z) + static.YA2*(Wz*exo.Z) + static.YA3*(Xx*dynamic.X + Xz*exo.Z) + static.YA4*(Zz*exo.Z) + static.YB1*dynamic.J + static.YB2*exo.W + static.YB3*dynamic.X + static.YB4*exo.Z + hcat(static.YC1, static.YC2))
-    end
-    return out
+    return StaticSolution[
+        StaticSolution(static.YA1*(Jx*dynamic.X + Jz*exo.Z) + static.YA2*(Wz*exo.Z) + static.YA3*(Xx*dynamic.X + Xz*exo.Z) + static.YA4*(Zz*exo.Z) + static.YB1*dynamic.J + static.YB2*exo.W + static.YB3*dynamic.X + static.YB4*exo.Z + hcat(static.YC1, static.YC2))
+        for (r,static,exo,dynamic) in zip(1:model.meta.numregimes,staticsols,exosols,dynamicsols)
+    ]
 end
 
 function convert2decision(model,dynamics,exos,statics)
@@ -511,7 +515,7 @@ function convert2decision(model,dynamics,exos,statics)
     Xindices = model.vars.states_indices[model.perturbationsystem.isX[model.vars.isstate]]
     Zindices = model.vars.states_indices[model.perturbationsystem.isZ[model.vars.isstate]]
     indices = vcat(Xindices,Zindices)
-    
+
     for r in 1:model.meta.numregimes
         decision[model.perturbationsystem.isY,indices,r] = statics[r].Y
         decision[model.perturbationsystem.isJ,indices,r] = dynamics[r].J
@@ -519,43 +523,40 @@ function convert2decision(model,dynamics,exos,statics)
         decision[model.perturbationsystem.isZ,indices,r] = exos[r].Z
         decision[model.perturbationsystem.isW,indices,r] = exos[r].W
     end
-    
+
     return decision
 end
 
-function solveshocks(model,m,Xx,Xz,Jx,Jz,Wz,Zz,r)
+function solveshocks(m::EvaluatedMatrices,Xx::Matrix{Float64},Xz::Matrix{Float64},Jx::Matrix{Float64},Jz::Matrix{Float64},Wz::Matrix{Float64},Zz::Matrix{Float64})
     return ShocksSolution(-hcat(m.B1, m.B2, m.A1*Jx+m.A3*Xx+m.B3, m.A1*Jz+m.A2*Wz+m.A3*Xz+m.A4*Zz+m.B4, m.B5)\m.C_shocks)
 end
 
-function rearrangeshocks(model,ordered)
+function rearrangeshocks(model::RSDSGEModel,ordered::Vector{ShocksSolution})
     # J,W,X,Z,Y
     shockssol = zeros(Float64,model.meta.numvars,model.meta.numshocks,model.meta.numregimes)
     for r in 1:model.meta.numregimes
         offset = 1
-        shockssol[model.perturbationsystem.isJ,:,r] = ordered[r].orderedME[offset:(offset-1+countnz(model.perturbationsystem.isJ)),:]
-        offset += countnz(model.perturbationsystem.isJ)
-        shockssol[model.perturbationsystem.isW,:,r] = ordered[r].orderedME[offset:(offset-1+countnz(model.perturbationsystem.isW)),:]
-        offset += countnz(model.perturbationsystem.isW)
-        shockssol[model.perturbationsystem.isX,:,r] = ordered[r].orderedME[offset:(offset-1+countnz(model.perturbationsystem.isX)),:]
-        offset += countnz(model.perturbationsystem.isX)
-        shockssol[model.perturbationsystem.isZ,:,r] = ordered[r].orderedME[offset:(offset-1+countnz(model.perturbationsystem.isZ)),:]
-        offset += countnz(model.perturbationsystem.isZ)
-        shockssol[model.perturbationsystem.isY,:,r] = ordered[r].orderedME[offset:(offset-1+countnz(model.perturbationsystem.isY)),:]
+        shockssol[model.perturbationsystem.isJ,:,r] = ordered[r].orderedME[offset:(offset-1+count(!iszero, model.perturbationsystem.isJ)),:]
+        offset += count(!iszero, model.perturbationsystem.isJ)
+        shockssol[model.perturbationsystem.isW,:,r] = ordered[r].orderedME[offset:(offset-1+count(!iszero, model.perturbationsystem.isW)),:]
+        offset += count(!iszero, model.perturbationsystem.isW)
+        shockssol[model.perturbationsystem.isX,:,r] = ordered[r].orderedME[offset:(offset-1+count(!iszero, model.perturbationsystem.isX)),:]
+        offset += count(!iszero, model.perturbationsystem.isX)
+        shockssol[model.perturbationsystem.isZ,:,r] = ordered[r].orderedME[offset:(offset-1+count(!iszero, model.perturbationsystem.isZ)),:]
+        offset += count(!iszero, model.perturbationsystem.isZ)
+        shockssol[model.perturbationsystem.isY,:,r] = ordered[r].orderedME[offset:(offset-1+count(!iszero, model.perturbationsystem.isY)),:]
     end
     return shockssol
 end
 
-function solveshocks(model,m,Xx,Xz,Jx,Jz,Wz,Zz)
-    out = Array{ShocksSolution}(0)
-    for r in 1:model.meta.numregimes
-        push!(out,solveshocks(model,m[r],Xx,Xz,Jx,Jz,Wz,Zz,r))
-    end
+function solveshocks(model::RSDSGEModel,m::Vector{EvaluatedMatrices},Xx::Matrix{Float64},Xz::Matrix{Float64},Jx::Matrix{Float64},Jz::Matrix{Float64},Wz::Matrix{Float64},Zz::Matrix{Float64})
+    out = ShocksSolution[solveshocks(m[r],Xx,Xz,Jx,Jz,Wz,Zz) for r in 1:model.meta.numregimes]
     # Now rearrange it into the same order as the variables are listed in the model
     shockssol = rearrangeshocks(model,out)
     return shockssol
 end
 
-function solveconstant(model,m,Xx,Xz,Jx,Jz,Wz,Zz,r)
+function solveconstant(m::EvaluatedMatrices,Xx::Matrix{Float64},Xz::Matrix{Float64},Jx::Matrix{Float64},Jz::Matrix{Float64},Wz::Matrix{Float64},Zz::Matrix{Float64})
     return ConstantSolution(-hcat(m.B1, m.B2, m.A1*Jx+m.A3*Xx+m.B3, m.A1*Jz+m.A2*Wz+m.A3*Xz+m.A4*Zz+m.B4, m.B5)\m.C_constant)
 end
 
@@ -564,15 +565,15 @@ function rearrangeconstant(model,ordered)
     constantsol = zeros(Float64,model.meta.numvars,1,model.meta.numregimes)
     for r in 1:model.meta.numregimes
         offset = 1
-        constantsol[model.perturbationsystem.isJ,1,r] = ordered[r].orderedMC[offset:(offset-1+countnz(model.perturbationsystem.isJ)),1]
-        offset += countnz(model.perturbationsystem.isJ)
-        constantsol[model.perturbationsystem.isW,1,r] = ordered[r].orderedMC[offset:(offset-1+countnz(model.perturbationsystem.isW)),1]
-        offset += countnz(model.perturbationsystem.isW)
-        constantsol[model.perturbationsystem.isX,1,r] = ordered[r].orderedMC[offset:(offset-1+countnz(model.perturbationsystem.isX)),1]
-        offset += countnz(model.perturbationsystem.isX)
-        constantsol[model.perturbationsystem.isZ,1,r] = ordered[r].orderedMC[offset:(offset-1+countnz(model.perturbationsystem.isZ)),1]
-        offset += countnz(model.perturbationsystem.isZ)
-        constantsol[model.perturbationsystem.isY,1,r] = ordered[r].orderedMC[offset:(offset-1+countnz(model.perturbationsystem.isY)),1]
+        constantsol[model.perturbationsystem.isJ,1,r] = ordered[r].orderedMC[offset:(offset-1+count(!iszero, model.perturbationsystem.isJ)),1]
+        offset += count(!iszero, model.perturbationsystem.isJ)
+        constantsol[model.perturbationsystem.isW,1,r] = ordered[r].orderedMC[offset:(offset-1+count(!iszero, model.perturbationsystem.isW)),1]
+        offset += count(!iszero, model.perturbationsystem.isW)
+        constantsol[model.perturbationsystem.isX,1,r] = ordered[r].orderedMC[offset:(offset-1+count(!iszero, model.perturbationsystem.isX)),1]
+        offset += count(!iszero, model.perturbationsystem.isX)
+        constantsol[model.perturbationsystem.isZ,1,r] = ordered[r].orderedMC[offset:(offset-1+count(!iszero, model.perturbationsystem.isZ)),1]
+        offset += count(!iszero, model.perturbationsystem.isZ)
+        constantsol[model.perturbationsystem.isY,1,r] = ordered[r].orderedMC[offset:(offset-1+count(!iszero, model.perturbationsystem.isY)),1]
     end
     return constantsol
 end
@@ -584,11 +585,8 @@ function addssvalues!(constantsol,model)
     return
 end
 
-function solveconstant(model,m,Xx,Xz,Jx,Jz,Wz,Zz)
-    out = Array{ConstantSolution}(0)
-    for r in 1:model.meta.numregimes
-        push!(out,solveconstant(model,m[r],Xx,Xz,Jx,Jz,Wz,Zz,r))
-    end
+function solveconstant(model::RSDSGEModel,m::Vector{EvaluatedMatrices},Xx::Matrix{Float64},Xz::Matrix{Float64},Jx::Matrix{Float64},Jz::Matrix{Float64},Wz::Matrix{Float64},Zz::Matrix{Float64})
+    out = ConstantSolution[solveconstant(m[r],Xx,Xz,Jx,Jz,Wz,Zz) for r in 1:model.meta.numregimes]
     # Now rearrange it into the same order as the variables are listed in the model
     constantsol = rearrangeconstant(model,out)
     # Add steady state values
@@ -596,69 +594,57 @@ function solveconstant(model,m,Xx,Xz,Jx,Jz,Wz,Zz)
     return constantsol
 end
 
-function printif(verbose,string)
-    if verbose
-        print(string)
-    end
-    return
-end
-
-function printlnif(verbose,string)
-    if verbose
-        println(string)
-    end
-    return
-end
-
-function solve(model::RSDSGEModel,verbose::Bool = true; method::Int=1)
-    printif(verbose,"Evaluating coefficient matrices...")
+function solve(model::RSDSGEModel,verbose::Bool = true, method::Symbol = :symbolic)
+    verbose && print("Evaluating coefficient matrices...")
     m = evaluatematrices(model)
-    printlnif(verbose,"done.")
-    
-    printif(verbose,"Subbing out static variables...")
+    verbose && println("done.")
+
+    verbose && print("Subbing out static variables...")
     statics = substatics(model,m)
-    printlnif(verbose,"done.")
-    
-    printif(verbose,"Solving exogenous equations...")
+    verbose && println("done.")
+
+    verbose && print("Solving exogenous equations...")
     exosolutions = solveexos(model,m,statics)
     Wz,Zz = arrangeexomatrices(model,exosolutions)
-    printlnif(verbose,"done.")
-    
-    printif(verbose,"Constructing system of quadratic equations...")
+    verbose && println("done.")
+
+    verbose && print("Constructing system of quadratic equations...")
     system = createsystem(model,m,statics,exosolutions,Wz,Zz)
-    printlnif(verbose,"done")
-    
+    verbose && println("done")
+
     blocks,system,restricteddecisionrules = separateblocks(model,system)
-    system,blockdict = solveblocks(model,blocks,system,restricteddecisionrules,verbose,method)
+    system,blockdict = solveblocks(blocks,system,restricteddecisionrules,verbose,method)
     merge!(blockdict,restricteddecisionrules)
 
-    printif(verbose,"Solving complete system of quadratic equations ($(length(system)) equations)...")
-    if method == 1
-        dynamicsolutions = solve_withfallback(system)
-    elseif method == 2
-        dynamicsolutions = numericsolve(system)
+    verbose && print("Solving complete system of quadratic equations ($(length(system)) equations)...")
+    dynamicsolutions = if method == :symbolic
+        symbolic_solve(system)
+    elseif methods == :numeric
+        numericsolve(system)
     else
-        error("Option $(method) is not a valid solution method.")
+        error("Unknown solution method $method")
     end
-        
-    printlnif(verbose,"done")
-    
+
+    verbose && println("done")
+
     if isa(dynamicsolutions,Dict)
         dynamicsolutions = [dynamicsolutions]
     end
     println("Found $(length(dynamicsolutions)) solution(s).")
-    solutions = Array{RSDSGESolution}(0)
+    solutions = Vector{RSDSGESolution}()
     for (i,sol) in enumerate(dynamicsolutions)
         # Ignore any imaginary solutions
-        if !hasimaginary(sol)
+        if !hasimaginary(sol) # This tests approximate zero for imaginary part
+            # Strip out the imaginary parts
             # Merge in the block dict solutions
+            sol = Dict{Symbolics.Num,Float64}(k => real(v) for (k,v) in sol)
             sol = merge(sol,blockdict)
-            # Here's where I probably want to test for stability using FRWZ MSS method?
-            
+            # TODO: Here's where I probably want to test for stability using FRWZ MSS method?
+
             # Format into nicer form (i.e., not a dictionary)
             dynamics = formatdynamicsolution(model,sol)
             # Arrange the states solution in Xx, Xz etc
-            Xx,Xz,Jx,Jz = arrangesolutionmatrices(model,exosolutions,dynamics) 
+            Xx,Xz,Jx,Jz = arrangesolutionmatrices(model,dynamics)
             # Back out the statics
             staticsol = solvestatics(model,statics,exosolutions,dynamics,Xx,Xz,Jx,Jz,Wz,Zz)
             # Format into decision rule matrix

@@ -1,5 +1,5 @@
-path=dirname(@__FILE__)
-f = load("$path/modelsolutions.jld")
+path=joinpath(pkgdir(RSDSGE), "test", "testdata", "modelsolutions.jld")
+f = load(path)
 
 NKsol=solve(twoEQNK)
 FRWZsol=solve(FRWZ)
@@ -26,5 +26,3 @@ end
     @test isapprox(FRWZsol[1].MC, f["FRWZsolMC1"])
     @test isapprox(FRWZsol[2].MC, f["FRWZsolMC2"])
 end
-
-
