@@ -27,7 +27,7 @@ jobs:
         id: cpr
         uses: peter-evans/create-pull-request@v5
         with:
-          token: ${{ secrets.BOT_CREATE_PR_PAT }}
+          token: ${{ secrets.DOCUMENTER_KEY }}
           commit-message: Format .jl files
           title: 'Automatic JuliaFormatter.jl run'
           branch: auto-juliaformatter-pr

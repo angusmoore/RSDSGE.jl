@@ -2,7 +2,7 @@
 
 ![Lifecycle](https://img.shields.io/badge/lifecycle-experimental-orange.svg)
 [![CI](https://github.com/angusmoore/RSDSGE.jl/workflows/CI/badge.svg)](https://github.com/angusmoore/RSDSGE.jl/actions/workflows/CI.yml/)
-[![codecov](https://codecov.io/gh/angusmoore/RSDSGE.jl/branch/main/graph/badge.svg?token=mHWsYed7iR)](https://codecov.io/gh/angusmoore/RSDSGE.jl)
+[![codecov](https://codecov.io/gh/angusmoore/RSDSGE.jl/graph/badge.svg?token=q19V8EAXY4)](https://codecov.io/gh/angusmoore/RSDSGE.jl)
 
 A Julia package to solve regime switching dynamic stochastic general equilibrium (DSGE) models.
 

@@ -1,4 +1,4 @@
-path=joinpath(pkgdir(RSDSGE), "test", "testdata", "modelsolutions.jld")
+path=joinpath(pkgdir(RSDSGE), "test", "testdata", "modelsolutions.jld2")
 f = load(path)
 
 NKsol=solve(twoEQNK)

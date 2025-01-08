@@ -5,6 +5,4 @@ jobs:
   code-style:
     runs-on: ubuntu-latest
     steps:
-      - uses: julia-actions/julia-format@v2
-        env:
-            REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.BOT_CREATE_PR_PAT }}
+      - uses: julia-actions/julia-format@v3
