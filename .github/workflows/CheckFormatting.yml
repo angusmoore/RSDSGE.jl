@@ -25,7 +25,7 @@ jobs:
           julia -e 'using JuliaFormatter; format(".")'
       - name: Create Pull Request
         id: cpr
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.DOCUMENTER_KEY }}
           commit-message: Format .jl files
