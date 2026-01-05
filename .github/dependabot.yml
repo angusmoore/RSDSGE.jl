@@ -1,8 +1,10 @@
 version: 2
 updates:
-  # Keeping github actions that we use up to date
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      # Check for updates to GitHub Actions every week
-      interval: "weekly"
+      interval: "monthly"
+  - package-ecosystem: "julia"
+    directory: "/"
+    schedule:
+      internal: "monthly"
