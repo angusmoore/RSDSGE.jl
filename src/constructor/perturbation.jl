@@ -147,7 +147,7 @@ function checkredundancy(vars,block,list)
     # Do the easiest check first. Is it just an existing block with tacked on exo or static
     for j in 1:length(list)
         combo = list[j].vars
-        if all(vars.isexo[block.vars. & .!combo] .| vars.isstatic[block.vars .& .!combo])
+        if all(vars.isexo[block.vars .& .!combo] .| vars.isstatic[block.vars .& .!combo])
             return true
         end
     end
