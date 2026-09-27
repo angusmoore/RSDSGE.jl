@@ -21,7 +21,7 @@ NLsolve = "4.5"
 Polynomials = "4"
 SparseArrays = "1.11"
 SymbolicUtils = "3.7"
-Symbolics = "6"
+Symbolics = "6, 7.41"
 Test = "1"
 julia = "1"
 
